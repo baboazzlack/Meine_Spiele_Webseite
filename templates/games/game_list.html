@@ -1,1 +1,28 @@
-﻿{% extends 'base.html' %}{% block content %}<h2>Alle Spiele</h2><style>.game-card{border:2px solid #533483;padding:15px;margin-bottom:20px;text-align:left;}</style>{% for game in games %}<div class="game-card"><h3>{{ game.name }}</h3><p>{{ game.description|default:"" }}</p><a href="{% url game.url_name %}">Spielen</a></div>{% endfor %}{% endblock %}
+﻿{% extends 'base.html' %}
+{% block content %}
+    
+    <h2>Neue Retro Games</h2>
+    {% for game in neue_spiele %}
+        <div class="game-card" style="border: 2px solid #533483; padding: 15px; margin-bottom: 20px; text-align: left;">
+            <h3>{{ game.name }}</h3>
+            <p>{{ game.description|default:"" }}</p>
+            <a href="{% url game.url_name %}">Spielen</a>
+        </div>
+    {% empty %}
+        <p>Noch keine neuen Spiele verfügbar.</p>
+    {% endfor %}
+
+    <hr style="margin: 40px 0; border-color: #533483;">
+
+    <h2>Alte Retro Games</h2>
+    {% for game in alte_spiele %}
+        <div class="game-card" style="border: 2px solid #533483; padding: 15px; margin-bottom: 20px; text-align: left;">
+            <h3>{{ game.name }}</h3>
+            <p>{{ game.description|default:"" }}</p>
+            <a href="{% url game.url_name %}">Spielen</a>
+        </div>
+    {% empty %}
+        <p>Keine alten Spiele verfügbar.</p>
+    {% endfor %}
+
+{% endblock %}

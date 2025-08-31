@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Pac-Man{% endblock %}
+{% block content %}
+    <h2>Pac-Man</h2>
+    <style>
+        #game-container { position: relative; width: 560px; height: 620px; margin: 0 auto; }
+        #game-board { border: 3px solid #ffc107; background-color: #000; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; z-index: 100;}
+        .difficulty-button { display: inline-block; padding: 15px 25px; margin: 10px; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; }
+        .easy { background-color: #28a745; } .medium { background-color: #ffc107; color: #1a1a2e;} .hard { background-color: #dc3545; }
+    </style>
+
+    <div id="game-container">
+        <canvas id="game-board" width="560" height="620"></canvas>
+        <div id="overlay">
+            <h3>PAC-MAN</h3>
+            <p>Wähle eine Schwierigkeit:</p>
+            <div>
+                <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
+                <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
+                <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
+            </div>
+            <p style="font-size: 0.8em; margin-top: 40px;">Steuerung: Pfeiltasten</p>
+        </div>
+    </div>
+    <div style="width: 560px; margin: 10px auto; display: flex; justify-content: space-between;">
+        <h3 id="score-display">Score: 0</h3>
+        <h3 id="lives-display">Leben: 3</h3>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('game-board');
+        const context = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score-display');
+        const livesDisplay = document.getElementById('lives-display');
+        const overlay = document.getElementById('overlay');
+
+        const tileSize = 20;
+        
+        // Labyrinth-Layout (1=Wand, 0=Gang)
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,0,0,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,1,1,1,1],
+            [0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0], // Tunnel
+            [1,1,1,1,1,1,0,1,1,0,1,0,0,0,0,0,0,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+            [1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1],
+            [1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1],
+            [1,1,1,0,1,1,0,1,1,0,1,1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,1,1],
+            [1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1],
+            [1,0,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        
+        let player;
+        let gameLoopId;
+        
+        class Player {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.radius = tileSize / 2 - 2;
+                this.speed = 2;
+                this.dx = 0; this.dy = 0; // Aktuelle Bewegung in Kacheln (1, 0, -1)
+                this.nextDx = 0; this.nextDy = 0; // Geplante Bewegung
+                this.mouthOpenValue = 0;
+                this.mouthSpeed = 0.07;
+                this.rotation = 0; // in Radiant
+            }
+
+            draw() {
+                context.save();
+                context.translate(this.x, this.y);
+                context.rotate(this.rotation);
+                context.fillStyle = 'yellow';
+                context.beginPath();
+                context.arc(0, 0, this.radius, this.mouthOpenValue * Math.PI, (2 - this.mouthOpenValue) * Math.PI);
+                context.lineTo(0, 0);
+                context.fill();
+                context.restore();
+            }
+            
+            update() {
+                this.mouthOpenValue += this.mouthSpeed;
+                if (this.mouthOpenValue > 0.25 || this.mouthOpenValue < 0) this.mouthSpeed *= -1;
+                
+                const onGridCenter = (this.x % tileSize === tileSize / 2) && (this.y % tileSize === tileSize / 2);
+
+                if (onGridCenter) {
+                    const currentTileX = Math.floor(this.x / tileSize);
+                    const currentTileY = Math.floor(this.y / tileSize);
+                    const nextPlannedTileX = currentTileX + this.nextDx;
+                    const nextPlannedTileY = currentTileY + this.nextDy;
+
+                    if (map[nextPlannedTileY] !== undefined && map[nextPlannedTileY][nextPlannedTileX] !== 1) {
+                        this.dx = this.nextDx;
+                        this.dy = this.nextDy;
+                        if (this.dx > 0) this.rotation = 0;
+                        else if (this.dx < 0) this.rotation = Math.PI;
+                        else if (this.dy > 0) this.rotation = 0.5 * Math.PI;
+                        else if (this.dy < 0) this.rotation = 1.5 * Math.PI;
+                    }
+
+                    const nextCurrentTileX = currentTileX + this.dx;
+                    const nextCurrentTileY = currentTileY + this.dy;
+                    if (map[nextCurrentTileY] !== undefined && map[nextCurrentTileY][nextCurrentTileX] === 1) {
+                        this.dx = 0; this.dy = 0;
+                    }
+                }
+
+                this.x += this.dx * this.speed;
+                this.y += this.dy * this.speed;
+
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+            }
+
+            setDirection(dx, dy) {
+                this.nextDx = dx;
+                this.nextDy = dy;
+            }
+        }
+
+        function drawMaze() {
+            for (let row = 0; row < map.length; row++) {
+                for (let col = 0; col < map[row].length; col++) {
+                    if (map[row][col] === 1) {
+                        context.fillStyle = '#0000FF';
+                        context.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                    }
+                }
+            }
+        }
+        
+        function gameLoop() {
+            if (!player) return;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            drawMaze();
+            player.update();
+            player.draw();
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', e => {
+            if(player) {
+                e.preventDefault();
+                switch(e.key) {
+                    case 'ArrowUp': player.setDirection(0, -1); break;
+                    case 'ArrowDown': player.setDirection(0, 1); break;
+                    case 'ArrowLeft': player.setDirection(-1, 0); break;
+                    case 'ArrowRight': player.setDirection(1, 0); break;
+                }
+            }
+        });
+
+        function startGame(difficulty) {
+            player = new Player(tileSize * 14 + tileSize / 2, tileSize * 23 + tileSize / 2);
+            overlay.style.display = 'none';
+            cancelAnimationFrame(gameLoopId);
+            gameLoop();
+        }
+    </script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Space Invaders{% endblock %}
+{% block content %}
+    <h2>Space Invaders</h2>
+
+    <style>
+        #game-container { position: relative; width: 550px; height: 400px; margin: 0 auto; }
+        #game-board { border: 3px solid #e0e0e0; background-color: #000; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; }
+        .difficulty-button { display: inline-block; padding: 15px 25px; margin: 10px; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; }
+        .easy { background-color: #28a745; } .medium { background-color: #ffc107; color: #1a1a2e;} .hard { background-color: #dc3545; }
+    </style>
+
+    <div id="game-container">
+        <canvas id="game-board" width="550" height="400"></canvas>
+        <div id="overlay">
+            <h3>Space Invaders</h3>
+            <p>Wähle eine Schwierigkeitsstufe:</p>
+            <div>
+                <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
+                <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
+                <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
+            </div>
+            <p style="font-size: 0.8em; margin-top: 40px;">Links/Rechts: Bewegen<br>Leertaste: Schießen</p>
+        </div>
+    </div>
+    <div style="width: 550px; margin: 10px auto; display: flex; justify-content: space-between;">
+        <h3 id="score-display">Score: 0</h3>
+        <h3 id="lives-display">Leben: 3</h3>
+    </div>
+    
+    <script>
+        // Spiel-Setup
+        const canvas = document.getElementById('game-board');
+        const context = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const scoreDisplay = document.getElementById('score-display');
+        const livesDisplay = document.getElementById('lives-display');
+
+        // Spiel-Objekte
+        const player = { x: canvas.width / 2 - 15, y: canvas.height - 30, width: 30, height: 15, speed: 4, lives: 3 };
+        const playerLaser = { x: 0, y: 0, width: 3, height: 10, speed: 7, active: false };
+        const invaders = [];
+        const invaderGrid = { x: 50, y: 30, width: 450, speed: 0.5, direction: 1, drop: 10 };
+        const invaderLasers = [];
+        
+        let score = 0;
+        let isGameOver = true;
+        let keys = {};
+        let gameLoopId;
+        let currentDifficulty;
+        let invaderShootChance;
+
+        function createInvaders() {
+            invaders.length = 0;
+            const rows = 5;
+            const cols = 10;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    invaders.push({
+                        x: invaderGrid.x + c * 40,
+                        y: invaderGrid.y + r * 30,
+                        width: 20,
+                        height: 15,
+                        alive: true
+                    });
+                }
+            }
+        }
+
+        function startGame(difficulty) {
+            currentDifficulty = difficulty;
+            const difficultySettings = {
+                easy:   { lives: 5, speed: 0.4, shootChance: 0.003 },
+                medium: { lives: 3, speed: 0.7, shootChance: 0.006 },
+                hard:   { lives: 1, speed: 1.0, shootChance: 0.01 }
+            };
+
+            const settings = difficultySettings[difficulty];
+            player.lives = settings.lives;
+            invaderGrid.speed = settings.speed;
+            invaderShootChance = settings.shootChance;
+            
+            score = 0;
+            player.x = canvas.width / 2 - 15;
+            invaderGrid.x = 50; 
+            invaderGrid.y = 30;
+            invaderGrid.direction = 1;
+            createInvaders();
+            invaderLasers.length = 0;
+            isGameOver = false;
+            overlay.style.display = 'none';
+
+            cancelAnimationFrame(gameLoopId);
+            gameLoopId = requestAnimationFrame(update);
+        }
+
+        function draw() {
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            context.fillStyle = 'lime';
+            context.fillRect(player.x, player.y, player.width, player.height);
+
+            if(playerLaser.active) {
+                context.fillStyle = 'white';
+                context.fillRect(playerLaser.x, playerLaser.y, playerLaser.width, playerLaser.height);
+            }
+
+            context.fillStyle = 'cyan';
+            invaders.forEach(invader => {
+                if(invader.alive) context.fillRect(invader.x, invader.y, invader.width, invader.height);
+            });
+
+            context.fillStyle = 'red';
+            invaderLasers.forEach(laser => {
+                context.fillRect(laser.x, laser.y, laser.width, laser.height);
+            });
+
+            scoreDisplay.textContent = `Score: ${score}`;
+            livesDisplay.textContent = `Leben: ${player.lives}`;
+        }
+
+        function update() {
+            if (isGameOver) return;
+
+            if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+            if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed;
+            if (keys[' '] && !playerLaser.active) {
+                playerLaser.active = true;
+                playerLaser.x = player.x + player.width / 2 - playerLaser.width / 2;
+                playerLaser.y = player.y;
+            }
+
+            if(playerLaser.active) {
+                playerLaser.y -= playerLaser.speed;
+                if(playerLaser.y < 0) playerLaser.active = false;
+            }
+
+            let dropDown = false;
+            invaders.forEach(invader => {
+                if(invader.alive) {
+                     if( (invader.x + invader.width >= canvas.width && invaderGrid.direction > 0) || 
+                         (invader.x <= 0 && invaderGrid.direction < 0) ) {
+                        dropDown = true;
+                    }
+                }
+            });
+            
+            if(dropDown) {
+                invaderGrid.direction *= -1;
+                invaders.forEach(invader => invader.y += invaderGrid.drop);
+            }
+            
+            invaders.forEach(invader => {
+                invader.x += invaderGrid.speed * invaderGrid.direction;
+                if(invader.alive && invader.y + invader.height >= player.y) gameOver(false);
+            });
+            
+            invaders.forEach(invader => {
+                if(invader.alive && Math.random() < invaderShootChance) {
+                    invaderLasers.push({ x: invader.x + invader.width/2, y: invader.y + invader.height, width: 3, height: 10, speed: 4 });
+                }
+            });
+
+            invaderLasers.forEach((laser, index) => {
+                laser.y += laser.speed;
+                if(laser.y > canvas.height) invaderLasers.splice(index, 1);
+            });
+
+            invaders.forEach(invader => {
+                if(invader.alive && playerLaser.active &&
+                   playerLaser.x < invader.x + invader.width && playerLaser.x + playerLaser.width > invader.x &&
+                   playerLaser.y < invader.y + invader.height && playerLaser.y + playerLaser.height > invader.y) {
+                    invader.alive = false;
+                    playerLaser.active = false;
+                    score += 100;
+                }
+            });
+
+            invaderLasers.forEach((laser, index) => {
+                if(laser.x < player.x + player.width && laser.x + laser.width > player.x &&
+                   laser.y < player.y + player.height && laser.y + laser.height > player.y) {
+                    invaderLasers.splice(index, 1);
+                    player.lives--;
+                    if(player.lives <= 0) gameOver(false);
+                }
+            });
+
+            if (invaders.every(invader => !invader.alive)) gameOver(true);
+
+            draw();
+            gameLoopId = requestAnimationFrame(update);
+        }
+        
+        function gameOver(playerWon) {
+            cancelAnimationFrame(gameLoopId);
+            isGameOver = true;
+            overlay.style.display = 'flex';
+            
+            if (playerWon) {
+                 overlay.innerHTML = `<h3>Du hast gewonnen!</h3><p>Dein Score: ${score}</p><form id="highscore-form"><input type="text" id="player-name" placeholder="Dein Name..." required><button type="submit">Highscore speichern</button></form><p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
+                document.getElementById('highscore-form').addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    fetch("{% url 'games:save_score' %}", {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ player_name: document.getElementById('player-name').value, score: score, game: 'Space Invaders', difficulty: currentDifficulty })
+                    }).then(() => window.location.href = "{% url 'games:highscores' %}");
+                });
+            } else {
+                overlay.innerHTML = `<h3>Game Over!</h3><p>Dein Score: ${score}</p><p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
+            }
+        }
+
+        document.addEventListener('keydown', e => { keys[e.key] = true; });
+        document.addEventListener('keyup', e => { keys[e.key] = false; });
+    </script>
+{% endblock %}
