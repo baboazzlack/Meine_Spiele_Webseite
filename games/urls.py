@@ -10,7 +10,6 @@ urlpatterns = [
     path('schere-stein-papier/', views.rock_paper_scissors, name='rock_paper_scissors'),
     path('galgenmaennchen/', views.hangman, name='hangman'),
     path('snake/', views.snake, name='snake'),
-    # NEU: Die Adresse für Pong
     path('pong/', views.pong, name='pong'),
     path('save-score/', views.save_score, name='save_score'),
 ]

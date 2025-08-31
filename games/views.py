@@ -22,7 +22,6 @@ def game_list(request):
 
 # --- (Alle alten Spiele bleiben hier unverändert) ---
 def guess_the_number(request):
-    # ... alter Code ...
     if 'secret_number' not in request.session or request.GET.get('reset') == 'true':
         request.session['secret_number'] = random.randint(1, 100)
         request.session['attempts'] = 0
@@ -47,7 +46,6 @@ def guess_the_number(request):
     context = {'message': message}
     return render(request, 'games/guess_the_number.html', context)
 def tic_tac_toe(request):
-    # ... alter Code ...
     def check_winner(board):
         for i in range(3):
             if board[i][0] == board[i][1] == board[i][2] != '': return board[i][0]
@@ -152,7 +150,6 @@ def highscore_list(request):
     context = {'scores': scores}
     return render(request, 'games/highscores.html', context)
 def rock_paper_scissors(request):
-    # ... alter Code ...
     if request.GET.get('reset') == 'true':
         for key in ['rps_difficulty', 'rps_streak', 'rps_history', 'rps_message', 'rps_choices']:
             if key in request.session: del request.session[key]
@@ -219,10 +216,9 @@ def rock_paper_scissors(request):
     request.session['rps_streak'] = streak
     request.session['rps_history'] = history[-10:]
     request.session['rps_choices'] = choices
-    context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form,}
+    context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form}
     return render(request, 'games/rock_paper_scissors.html', context)
 def hangman(request):
-    # ... alter Code ...
     word_lists = {
         'easy': ["HAUS", "AUTO", "BALL", "BUCH", "MOND", "STERN"],
         'medium': ["PYTHON", "DJANGO", "COMPUTER", "SPIELE", "TASTATUR", "MONITOR"],
@@ -241,4 +237,56 @@ def hangman(request):
         for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
             if key in request.session: del request.session[key]
         return redirect(reverse('games:hangman'))
-    if request.method == '
+    if request.method == 'POST' and 'player_name' in request.POST:
+        name = request.POST.get('player_name', 'Anonym')
+        score = request.session.get('guesses_left', 0)
+        difficulty = request.session.get('hangman_difficulty', 'normal')
+        if score > 0:
+            Highscore.objects.create(player_name=name, game="Galgenmännchen", difficulty=difficulty, score=score)
+        for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
+            if key in request.session: del request.session[key]
+        return redirect(reverse('games:highscores'))
+    if 'hangman_difficulty' not in request.session:
+        return render(request, 'games/hangman.html')
+    secret_word = request.session.get('secret_word')
+    guessed_letters = request.session.get('guessed_letters', [])
+    guesses_left = request.session.get('guesses_left', 6)
+    message = ''
+    winner = None
+    if request.method == 'POST' and 'guess' in request.POST:
+        guess = request.POST.get('guess').upper()
+        if guess in alphabet and len(guess) == 1 and guess not in guessed_letters:
+            guessed_letters.append(guess)
+            if guess not in secret_word:
+                guesses_left -= 1
+    display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
+    if display_word == secret_word:
+        winner = 'player'
+        message = "🎉 Du hast gewonnen! 🎉 Das Wort war " + secret_word
+    elif guesses_left <= 0:
+        winner = 'computer'
+        message = "Du hast verloren! Das Wort war " + secret_word
+    request.session['guessed_letters'] = guessed_letters
+    request.session['guesses_left'] = guesses_left
+    context = {'display_word': " ".join(display_word), 'guesses_left': guesses_left, 'guessed_letters': guessed_letters, 'alphabet': alphabet, 'winner': winner, 'message': message}
+    return render(request, 'games/hangman.html', context)
+def snake(request):
+    return render(request, 'games/snake.html')
+
+def pong(request):
+    return render(request, 'games/pong.html')
+
+def save_score(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            player_name = data.get('player_name', 'Anonym')
+            score = data.get('score', 0)
+            game = data.get('game', 'Unknown')
+            difficulty = data.get('difficulty', 'normal')
+            if score > 0:
+                Highscore.objects.create(player_name=player_name, game=game, difficulty=difficulty, score=score)
+            return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
