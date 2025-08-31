@@ -191,3 +191,13 @@ def save_score(request):
             return JsonResponse({'status': 'success'})
         except json.JSONDecodeError: return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+# ... (alle bisherigen Views in der Datei bleiben unverändert) ...
+
+# NEU: Views für Login und Registrierung hinzufügen
+from django.shortcuts import render # Sicherstellen, dass render importiert ist
+
+def register_page(request):
+    return render(request, 'register.html')
+
+def login_page(request):
+    return render(request, 'login.html')

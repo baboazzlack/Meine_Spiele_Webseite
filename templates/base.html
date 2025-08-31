@@ -4,40 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GFN Retro Hub{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Press Start 2P', cursive;
-            background-color: #0c0c1c;
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMGMwYzFjIj48L3JlY3Q+PHJlY3QgeD0iMjAiIHk9IjAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmYiPjwvcmVjdD48cmVjdCB4PSIzMCIgeT0iMzAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmYiPjwvcmVjdD48cmVjdCB4PSI1IiB5PSIxMCIgd2lkdGg9IjEiIGhlaWdodD0iMSIgZmlsbD0iI2ZmZiI+PC9yZWN0Pjwvc3ZnPg==');
+            background-color: #1a1a1a;
             color: #e0e0e0;
-            margin: 0;
-            padding: 20px;
+            font-family: 'Press Start 2P', cursive; /* Retro-Schriftart, falls du eine einbinden möchtest */
             text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            background-color: #333;
+            padding: 15px;
+            border-bottom: 3px solid #ffcc00;
+        }
+        nav a {
+            color: #ffcc00;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 1.2em;
+        }
+        nav a:hover {
+            color: #fff;
         }
         .container {
-            max-width: 960px; margin: 30px auto; padding: 20px;
-            background-color: rgba(15, 23, 42, 0.8);
-            border: 3px solid #32c8e6;
-            box-shadow: 0 0 15px #32c8e6;
+            padding: 20px;
         }
-        header h1 { font-size: 2.5em; color: #e94560; text-shadow: 3px 3px 0px #0c0c1c, 5px 5px 0px #32c8e6; }
-        nav { padding: 15px; border-top: 2px solid #32c8e6; border-bottom: 2px solid #32c8e6; margin-bottom: 30px; }
-        nav a { color: #e0e0e0; text-decoration: none; margin: 0 15px; font-size: 1.1em; }
-        nav a:hover { color: #e94560; }
-        h1, h2 { color: #e94560; }
-        a { color: #32c8e6; }
-        button, input { font-family: 'Press Start 2P', cursive; padding: 10px; margin: 5px; border-radius: 0; border: 1px solid #533483; background-color: #0f3460; color: #e0e0e0; }
-        button { cursor: pointer; }
-        footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #533483; font-size: .8em; color: #a0a0a0; }
+        h1, h2 {
+            color: #ffcc00;
+        }
+        /* Style für Login/Logout-Bereich */
+        .auth-links {
+            float: right;
+        }
+        .auth-links a, .auth-links button {
+            background: none;
+            border: 1px solid #ffcc00;
+            color: #ffcc00;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .auth-links button:hover, .auth-links a:hover {
+            background-color: #ffcc00;
+            color: #1a1a1a;
+        }
     </style>
 </head>
 <body>
+
+    <nav>
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'games:game_list' %}">Spiele</a>
+        <a href="{% url 'games:highscores' %}">Highscores</a>
+        
+        <div class="auth-links">
+            <a id="login-link" href="/login/">Login</a>
+            <a id="register-link" href="/register/">Registrieren</a>
+            <span id="user-greeting" style="display: none; color: #fff;"></span>
+            <button id="logout-button" style="display: none;">Logout</button>
+        </div>
+    </nav>
+
     <div class="container">
-        <header><h1><a href="{% url 'home' %}" style="text-decoration:none;color:inherit;">GFN Retro Hub</a></h1></header>
-        <nav><a href="{% url 'home' %}">Home</a> | <a href="{% url 'games:game_list' %}">Alle Spiele</a> | <a href="{% url 'games:highscores' %}">Highscores</a></nav>
-        <main>{% block content %}{% endblock %}</main>
-        <footer><p>&copy; 2025 GFN Retro Hub by Onur Acu</p></footer>
+        {% block content %}
+        {% endblock %}
     </div>
+
+    <script>
+        // Globale Logik für Login/Logout-Status
+        document.addEventListener('DOMContentLoaded', function() {
+            const accessToken = localStorage.getItem('accessToken');
+            const loginLink = document.getElementById('login-link');
+            const registerLink = document.getElementById('register-link');
+            const userGreeting = document.getElementById('user-greeting');
+            const logoutButton = document.getElementById('logout-button');
+
+            if (accessToken) {
+                // Benutzer ist eingeloggt
+                loginLink.style.display = 'none';
+                registerLink.style.display = 'none';
+                
+                // Optional: Benutzernamen anzeigen (erfordert einen API-Endpunkt, um Benutzerdaten abzurufen)
+                // Fürs Erste zeigen wir eine generische Nachricht
+                userGreeting.textContent = 'Willkommen!'; 
+                userGreeting.style.display = 'inline';
+                logoutButton.style.display = 'inline';
+
+            } else {
+                // Benutzer ist nicht eingeloggt
+                loginLink.style.display = 'inline';
+                registerLink.style.display = 'inline';
+                userGreeting.style.display = 'none';
+                logoutButton.style.display = 'none';
+            }
+
+            logoutButton.addEventListener('click', () => {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.location.href = '/login/'; // Leite zum Login weiter
+            });
+        });
+    </script>
+
 </body>
 </html>
