@@ -55,11 +55,12 @@
         
         <div class="game-actions" style="margin-top:20px;">
             {% if winner == 'X' %}
-                <form method="post">
+                <form method="post" style="display: inline-block;">
                     {% csrf_token %}
                     <input type="text" name="player_name" placeholder="Dein Name..." required>
                     <button type="submit">Highscore speichern!</button>
                 </form>
+                <a href="{% url 'games:tic_tac_toe' %}?reset=true" class="play-button" style="display:inline-block; text-decoration:none; padding:15px 20px; border-radius:0;">Nächstes Spiel</a>
 
             {% elif winner %}
                 <a href="{% url 'games:tic_tac_toe' %}?reset=true" class="play-button" style="display:inline-block; text-decoration:none; padding:10px 20px; border-radius:0;">Nächstes Spiel</a>
