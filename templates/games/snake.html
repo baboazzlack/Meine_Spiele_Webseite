@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Snake{% endblock %}
+{% block content %}
+    <h2>Snake</h2>
+
+    <style>
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            margin: 0 auto;
+        }
+        #game-board {
+            border: 3px solid #32c8e6;
+        }
+        #overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(12, 12, 28, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 1.2em;
+        }
+    </style>
+
+    <div id="game-container">
+        <canvas id="game-board" width="400" height="400"></canvas>
+        <div id="overlay">
+            <h3>Snake</h3>
+            <p>Benutze die Pfeiltasten, um die Schlange zu steuern.</p>
+            <button id="start-button">Spiel starten</button>
+        </div>
+    </div>
+    <h3 id="score-display" style="margin-top: 20px;">Score: 0</h3>
+    
+    <script>
+        // Spiel-Setup
+        const board = document.getElementById('game-board');
+        const context = board.getContext('2d');
+        const gridSize = 20; // 20x20 Felder
+        const tileSize = board.width / gridSize;
+
+        // Spiel-Variablen
+        let snake = [];
+        let food = {};
+        let score = 0;
+        let direction = 'right';
+        let isGameOver = true;
+        let gameLoop;
+        
+        const scoreDisplay = document.getElementById('score-display');
+        const overlay = document.getElementById('overlay');
+        const startButton = document.getElementById('start-button');
+
+        // Initialisiert oder startet das Spiel neu
+        function startGame() {
+            snake = [{x: 10, y: 10}]; // Startposition der Schlange
+            direction = 'right';
+            score = 0;
+            isGameOver = false;
+            scoreDisplay.textContent = 'Score: 0';
+            placeFood();
+
+            overlay.style.display = 'none'; // Overlay ausblenden
+            
+            // Alte Spiel-Schleife stoppen und neue starten
+            clearInterval(gameLoop);
+            gameLoop = setInterval(updateGame, 100); // Spielgeschwindigkeit: 100ms
+        }
+
+        // Platziert neues Futter an einer zufälligen Stelle
+        function placeFood() {
+            food = {
+                x: Math.floor(Math.random() * gridSize),
+                y: Math.floor(Math.random() * gridSize)
+            };
+            // Sicherstellen, dass Futter nicht auf der Schlange landet
+            for (let segment of snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    placeFood();
+                    break;
+                }
+            }
+        }
+
+        // Haupt-Spielschleife
+        function updateGame() {
+            if (isGameOver) return;
+
+            // Schlange bewegen
+            const head = {x: snake[0].x, y: snake[0].y};
+            if (direction === 'right') head.x++;
+            if (direction === 'left') head.x--;
+            if (direction === 'up') head.y--;
+            if (direction === 'down') head.y++;
+
+            // Kollisions-Prüfung (Wand oder sich selbst)
+            if (head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize || checkCollision(head)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head); // Neuen Kopf hinzufügen
+
+            // Futter-Prüfung
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreDisplay.textContent = 'Score: ' + score;
+                placeFood();
+            } else {
+                snake.pop(); // Letztes Segment entfernen, wenn kein Futter gegessen wurde
+            }
+            
+            draw();
+        }
+
+        // Zeichnet alles auf die Leinwand
+        function draw() {
+            // Hintergrund
+            context.fillStyle = '#1a1a2e';
+            context.fillRect(0, 0, board.width, board.height);
+
+            // Schlange
+            context.fillStyle = '#28a745'; // Grün
+            for (const segment of snake) {
+                context.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize - 1, tileSize - 1);
+            }
+
+            // Futter
+            context.fillStyle = '#e94560'; // Pink
+            context.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
+        }
+        
+        // Prüft, ob der Kopf mit dem Körper kollidiert
+        function checkCollision(head) {
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Spielende
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameLoop);
+            overlay.style.display = 'flex'; // Overlay wieder einblenden
+            
+            // Erstelle das Formular zum Speichern des Highscores
+            overlay.innerHTML = `
+                <h3>Game Over!</h3>
+                <p>Dein Score: ${score}</p>
+                <form id="highscore-form">
+                    <input type="text" id="player-name" placeholder="Dein Name..." required>
+                    <button type="submit">Highscore speichern</button>
+                </form>
+                <button onclick="startGame()">Nochmal spielen</button>
+            `;
+
+            const highscoreForm = document.getElementById('highscore-form');
+            highscoreForm.addEventListener('submit', function(event) {
+                event.preventDefault(); // Verhindert das Neuladen der Seite
+                const playerName = document.getElementById('player-name').value;
+                
+                // Sende Daten an den Django-Server
+                fetch("{% url 'games:save_score' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}' // CSRF-Token für Sicherheit
+                    },
+                    body: JSON.stringify({
+                        player_name: playerName,
+                        score: score,
+                        game: 'Snake',
+                        difficulty: 'normal' // Snake hat (noch) keine Schwierigkeitsstufen
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.status === 'success') {
+                        // Leite zur Highscore-Seite weiter
+                        window.location.href = "{% url 'games:highscores' %}";
+                    }
+                });
+            });
+        }
+
+        // Steuerung mit Pfeiltasten
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowUp' && direction !== 'down') direction = 'up';
+            if (e.key === 'ArrowDown' && direction !== 'up') direction = 'down';
+            if (e.key === 'ArrowLeft' && direction !== 'right') direction = 'left';
+            if (e.key === 'ArrowRight' && direction !== 'left') direction = 'right';
+        });
+
+        // Event Listener für den Start-Button
+        startButton.addEventListener('click', startGame);
+
+    </script>
+{% endblock %}

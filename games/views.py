@@ -1,6 +1,8 @@
 # Ort: games/views.py
 
 import random
+import json # NEU: Wird für die Kommunikation mit JavaScript benötigt
+from django.http import JsonResponse # NEU: Für die Kommunikation mit JavaScript
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from .models import Highscore
@@ -13,10 +15,11 @@ def game_list(request):
         {'name': 'Tic-Tac-Toe', 'description': 'Der unsterbliche Klassiker.', 'url_name': 'games:tic_tac_toe'},
         {'name': 'Schere, Stein, Papier', 'description': 'Glück, Taktik oder beides?', 'url_name': 'games:rock_paper_scissors'},
         {'name': 'Galgenmännchen', 'description': 'Errate das geheime Wort.', 'url_name': 'games:hangman'},
+        {'name': 'Snake', 'description': 'Der unzerstörbare Nokia-Klassiker.', 'url_name': 'games:snake'},
     ]
     return render(request, 'games/game_list.html', {'games': games})
 
-# --- guess_the_number, tic_tac_toe, highscore_list bleiben unverändert ---
+# --- (Alle alten Spiele bleiben hier unverändert) ---
 def guess_the_number(request):
     # ... alter Code ...
     if 'secret_number' not in request.session or request.GET.get('reset') == 'true':
@@ -215,11 +218,10 @@ def rock_paper_scissors(request):
     request.session['rps_streak'] = streak
     request.session['rps_history'] = history[-10:]
     request.session['rps_choices'] = choices
-    context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form}
+    context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form,}
     return render(request, 'games/rock_paper_scissors.html', context)
-
-# --- GALGENMÄNNCHEN LOGIK MIT SCHWIERIGKEITSSTUFEN ---
 def hangman(request):
+    # ... alter Code ...
     word_lists = {
         'easy': ["HAUS", "AUTO", "BALL", "BUCH", "MOND", "STERN"],
         'medium': ["PYTHON", "DJANGO", "COMPUTER", "SPIELE", "TASTATUR", "MONITOR"],
@@ -227,7 +229,6 @@ def hangman(request):
     }
     guesses_map = {'easy': 8, 'medium': 6, 'hard': 5}
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ"
-
     if request.method == 'POST' and 'difficulty' in request.POST:
         difficulty = request.POST.get('difficulty')
         request.session['hangman_difficulty'] = difficulty
@@ -235,12 +236,10 @@ def hangman(request):
         request.session['guessed_letters'] = []
         request.session['guesses_left'] = guesses_map[difficulty]
         return redirect(reverse('games:hangman'))
-    
     if request.GET.get('reset') == 'true':
         for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
             if key in request.session: del request.session[key]
         return redirect(reverse('games:hangman'))
-
     if request.method == 'POST' and 'player_name' in request.POST:
         name = request.POST.get('player_name', 'Anonym')
         score = request.session.get('guesses_left', 0)
@@ -250,23 +249,19 @@ def hangman(request):
         for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
             if key in request.session: del request.session[key]
         return redirect(reverse('games:highscores'))
-
     if 'hangman_difficulty' not in request.session:
         return render(request, 'games/hangman.html')
-
     secret_word = request.session.get('secret_word')
     guessed_letters = request.session.get('guessed_letters', [])
     guesses_left = request.session.get('guesses_left', 6)
     message = ''
     winner = None
-
     if request.method == 'POST' and 'guess' in request.POST:
         guess = request.POST.get('guess').upper()
         if guess in alphabet and len(guess) == 1 and guess not in guessed_letters:
             guessed_letters.append(guess)
             if guess not in secret_word:
                 guesses_left -= 1
-
     display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
     if display_word == secret_word:
         winner = 'player'
@@ -274,16 +269,35 @@ def hangman(request):
     elif guesses_left <= 0:
         winner = 'computer'
         message = "Du hast verloren! Das Wort war " + secret_word
-
     request.session['guessed_letters'] = guessed_letters
     request.session['guesses_left'] = guesses_left
-
-    context = {
-        'display_word': " ".join(display_word),
-        'guesses_left': guesses_left,
-        'guessed_letters': guessed_letters,
-        'alphabet': alphabet,
-        'winner': winner,
-        'message': message,
-    }
+    context = {'display_word': " ".join(display_word), 'guesses_left': guesses_left, 'guessed_letters': guessed_letters, 'alphabet': alphabet, 'winner': winner, 'message': message}
     return render(request, 'games/hangman.html', context)
+
+# --- NEU: Logik für Snake ---
+def snake(request):
+    # Die Python-Seite für Snake muss nur die HTML-Seite mit dem JavaScript-Code laden.
+    # Die eigentliche Spiellogik findet im Browser des Benutzers statt.
+    return render(request, 'games/snake.html')
+
+# NEU: Eigene Funktion zum Speichern von Scores, die von JavaScript aufgerufen werden kann
+def save_score(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            player_name = data.get('player_name', 'Anonym')
+            score = data.get('score', 0)
+            game = data.get('game', 'Unknown')
+            difficulty = data.get('difficulty', 'normal')
+
+            if score > 0:
+                Highscore.objects.create(
+                    player_name=player_name,
+                    game=game,
+                    difficulty=difficulty,
+                    score=score
+                )
+            return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
