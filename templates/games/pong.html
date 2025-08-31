@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% block title %}Pong{% endblock %}
+{% block content %}
+    <h2>Pong</h2>
+
+    <style>
+        #game-container {
+            position: relative;
+            width: 600px; /* Breiteres Feld für Pong */
+            height: 400px;
+            margin: 0 auto;
+            cursor: none; /* Versteckt den Mauszeiger über dem Spielfeld */
+        }
+        #game-board {
+            border: 3px solid #e0e0e0; /* Weißer Rand */
+            background-color: #000;
+        }
+        #overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 1.2em;
+        }
+    </style>
+
+    <div id="game-container">
+        <canvas id="game-board" width="600" height="400"></canvas>
+        <div id="overlay">
+            <h3>PONG</h3>
+            <p>Bewege deinen Schläger mit der Maus.<br>Wer zuerst 5 Punkte hat, gewinnt.</p>
+            <button id="start-button">Spiel starten</button>
+        </div>
+    </div>
+    
+    <script>
+        // Spiel-Setup
+        const canvas = document.getElementById('game-board');
+        const context = canvas.getContext('2d');
+        
+        const overlay = document.getElementById('overlay');
+        const startButton = document.getElementById('start-button');
+        
+        const WINNING_SCORE = 5;
+
+        // Spiel-Objekte
+        const ball = {
+            x: canvas.width / 2, y: canvas.height / 2,
+            radius: 7,
+            speed: 5,
+            dx: 5, dy: 5
+        };
+        const player = {
+            x: 10, y: canvas.height / 2 - 40,
+            width: 10, height: 80,
+            score: 0
+        };
+        const computer = {
+            x: canvas.width - 20, y: canvas.height / 2 - 40,
+            width: 10, height: 80,
+            score: 0
+        };
+        
+        let gameLoop;
+
+        // Startet das Spiel
+        function startGame() {
+            player.score = 0;
+            computer.score = 0;
+            resetBall();
+            overlay.style.display = 'none';
+            
+            cancelAnimationFrame(gameLoop); // Stoppt alte Schleife
+            gameLoop = requestAnimationFrame(update); // Startet neue, flüssige Schleife
+        }
+        
+        // Setzt den Ball in die Mitte zurück
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speed = 5;
+            // Zufällige Startrichtung
+            ball.dx = Math.random() > 0.5 ? 5 : -5;
+            ball.dy = Math.random() > 0.5 ? 5 : -5;
+        }
+
+        // Zeichnet alles auf die Leinwand
+        function draw() {
+            // Hintergrund
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Mittellinie
+            context.strokeStyle = '#e0e0e0';
+            context.lineWidth = 4;
+            context.beginPath();
+            context.setLineDash([10, 10]);
+            context.moveTo(canvas.width / 2, 0);
+            context.lineTo(canvas.width / 2, canvas.height);
+            context.stroke();
+            context.setLineDash([]);
+
+            // Punktestand
+            context.fillStyle = '#e0e0e0';
+            context.font = "40px 'Press Start 2P'";
+            context.fillText(player.score, canvas.width / 4, 50);
+            context.fillText(computer.score, 3 * canvas.width / 4, 50);
+
+            // Ball
+            context.beginPath();
+            context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            context.fill();
+            context.closePath();
+
+            // Spieler-Schläger
+            context.fillRect(player.x, player.y, player.width, player.height);
+            // Computer-Schläger
+            context.fillRect(computer.x, computer.y, computer.width, computer.height);
+        }
+
+        // Haupt-Update-Funktion (die Spiel-Schleife)
+        function update() {
+            // Ball bewegen
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Computer-KI (folgt dem Ball mit leichter Verzögerung)
+            computer.y += (ball.y - (computer.y + computer.height / 2)) * 0.1;
+
+            // Kollision oben/unten
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                ball.dy *= -1;
+            }
+
+            // Kollision mit Schlägern
+            if (
+                // Spieler-Schläger
+                (ball.x - ball.radius < player.x + player.width &&
+                 ball.y > player.y && ball.y < player.y + player.height) ||
+                // Computer-Schläger
+                (ball.x + ball.radius > computer.x &&
+                 ball.y > computer.y && ball.y < computer.y + computer.height)
+            ) {
+                ball.dx *= -1;
+                ball.speed += 0.5; // Ball wird schneller
+                ball.dx = ball.dx > 0 ? ball.speed : -ball.speed;
+            }
+            
+            // Punkt für Spieler oder Computer
+            if (ball.x + ball.radius > canvas.width) {
+                player.score++;
+                resetBall();
+            } else if (ball.x - ball.radius < 0) {
+                computer.score++;
+                resetBall();
+            }
+
+            // Zeichne alles neu
+            draw();
+
+            // Spielende prüfen
+            if (player.score >= WINNING_SCORE) {
+                gameOver(true);
+            } else if (computer.score >= WINNING_SCORE) {
+                gameOver(false);
+            } else {
+                gameLoop = requestAnimationFrame(update);
+            }
+        }
+        
+        function gameOver(playerWon) {
+            overlay.style.display = 'flex';
+            const scoreDifference = Math.abs(player.score - computer.score);
+
+            if (playerWon) {
+                 overlay.innerHTML = `
+                    <h3>Du hast gewonnen!</h3>
+                    <p>Endstand: ${player.score} zu ${computer.score}</p>
+                    <form id="highscore-form">
+                        <input type="text" id="player-name" placeholder="Dein Name..." required>
+                        <button type="submit">Highscore (${scoreDifference} Pkt.) speichern</button>
+                    </form>
+                    <button onclick="startGame()">Nochmal spielen</button>
+                `;
+                
+                const highscoreForm = document.getElementById('highscore-form');
+                highscoreForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const playerName = document.getElementById('player-name').value;
+                    
+                    fetch("{% url 'games:save_score' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            player_name: playerName,
+                            score: scoreDifference,
+                            game: 'Pong',
+                            difficulty: 'normal'
+                        })
+                    })
+                    .then(() => window.location.href = "{% url 'games:highscores' %}");
+                });
+
+            } else {
+                overlay.innerHTML = `
+                    <h3>Computer hat gewonnen!</h3>
+                    <p>Endstand: ${player.score} zu ${computer.score}</p>
+                    <button onclick="startGame()">Nochmal spielen</button>
+                `;
+            }
+        }
+
+        // Steuerung mit der Maus
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            player.y = e.clientY - rect.top - player.height / 2;
+        });
+
+        // Event Listener für den Start-Button
+        startButton.addEventListener('click', startGame);
+
+    </script>
+{% endblock %}

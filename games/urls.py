@@ -9,8 +9,8 @@ urlpatterns = [
     path('highscores/', views.highscore_list, name='highscores'),
     path('schere-stein-papier/', views.rock_paper_scissors, name='rock_paper_scissors'),
     path('galgenmaennchen/', views.hangman, name='hangman'),
-    # NEU: Die Adresse für Snake
     path('snake/', views.snake, name='snake'),
-    # NEU: Eine spezielle Adresse nur zum Speichern von Scores
+    # NEU: Die Adresse für Pong
+    path('pong/', views.pong, name='pong'),
     path('save-score/', views.save_score, name='save_score'),
 ]
