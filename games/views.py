@@ -16,7 +16,7 @@ def game_list(request):
     ]
     return render(request, 'games/game_list.html', {'games': games})
 
-# --- guess_the_number, tic_tac_toe, highscore_list, rock_paper_scissors bleiben unverändert ---
+# --- guess_the_number, tic_tac_toe, highscore_list bleiben unverändert ---
 def guess_the_number(request):
     # ... alter Code ...
     if 'secret_number' not in request.session or request.GET.get('reset') == 'true':
@@ -158,4 +158,132 @@ def rock_paper_scissors(request):
         request.session['rps_difficulty'] = difficulty
         request.session['rps_streak'] = 0
         request.session['rps_history'] = []
-        request.session['rps_message'] = f"Schwierigkeit: {
+        request.session['rps_message'] = f"Schwierigkeit: {difficulty}. Wähle dein Zeichen!"
+        return redirect(reverse('games:rock_paper_scissors'))
+    if request.method == 'POST' and 'player_name' in request.POST:
+        name = request.POST.get('player_name', 'Anonym')
+        difficulty = request.session.get('rps_difficulty', 'unknown')
+        streak = request.session.get('rps_streak', 0)
+        if streak > 0:
+            Highscore.objects.create(player_name=name, game="Schere, Stein, Papier", difficulty=difficulty, score=streak)
+        for key in ['rps_difficulty', 'rps_streak', 'rps_history', 'rps_message', 'rps_choices']:
+            if key in request.session: del request.session[key]
+        return redirect(reverse('games:highscores'))
+    if 'rps_difficulty' not in request.session:
+        return render(request, 'games/rock_paper_scissors.html')
+    message = request.session.get('rps_message', '')
+    streak = request.session.get('rps_streak', 0)
+    choices = request.session.get('rps_choices', {})
+    difficulty = request.session.get('rps_difficulty')
+    history = request.session.get('rps_history', [])
+    options = ['Schere', 'Stein', 'Papier']
+    show_highscore_form = False
+    if request.method == 'POST' and 'move' in request.POST:
+        player_move = request.POST.get('move')
+        history.append(player_move)
+        computer_move = ''
+        if difficulty == 'easy':
+            last_win = request.session.get('rps_last_win', random.choice(options))
+            computer_move = last_win
+        elif difficulty == 'hard':
+            if len(history) > 2:
+                most_common = Counter(history).most_common(1)[0][0]
+                if most_common == 'Schere': computer_move = 'Stein'
+                elif most_common == 'Stein': computer_move = 'Papier'
+                else: computer_move = 'Schere'
+            else:
+                computer_move = random.choice(options)
+        else:
+            computer_move = random.choice(options)
+        if player_move == computer_move:
+            result = 'Unentschieden!'
+            streak = 0
+            show_highscore_form = True
+        elif (player_move == 'Stein' and computer_move == 'Schere') or \
+             (player_move == 'Schere' and computer_move == 'Papier') or \
+             (player_move == 'Papier' and computer_move == 'Stein'):
+            result = 'Du gewinnst!'
+            streak += 1
+            request.session['rps_last_win'] = player_move
+        else:
+            result = 'Computer gewinnt!'
+            show_highscore_form = True
+            streak = 0
+        message = f"Du hast {player_move} gewählt, der Computer hat {computer_move} gewählt. {result}"
+        choices = {'player': player_move, 'computer': computer_move}
+    request.session['rps_message'] = message
+    request.session['rps_streak'] = streak
+    request.session['rps_history'] = history[-10:]
+    request.session['rps_choices'] = choices
+    context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form}
+    return render(request, 'games/rock_paper_scissors.html', context)
+
+# --- GALGENMÄNNCHEN LOGIK MIT SCHWIERIGKEITSSTUFEN ---
+def hangman(request):
+    word_lists = {
+        'easy': ["HAUS", "AUTO", "BALL", "BUCH", "MOND", "STERN"],
+        'medium': ["PYTHON", "DJANGO", "COMPUTER", "SPIELE", "TASTATUR", "MONITOR"],
+        'hard': ["BIBLIOTHEK", "PROGRAMMIERUNG", "SCHNITTSTELLE", "ALGORITHMUS"]
+    }
+    guesses_map = {'easy': 8, 'medium': 6, 'hard': 5}
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ"
+
+    if request.method == 'POST' and 'difficulty' in request.POST:
+        difficulty = request.POST.get('difficulty')
+        request.session['hangman_difficulty'] = difficulty
+        request.session['secret_word'] = random.choice(word_lists[difficulty])
+        request.session['guessed_letters'] = []
+        request.session['guesses_left'] = guesses_map[difficulty]
+        return redirect(reverse('games:hangman'))
+    
+    if request.GET.get('reset') == 'true':
+        for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
+            if key in request.session: del request.session[key]
+        return redirect(reverse('games:hangman'))
+
+    if request.method == 'POST' and 'player_name' in request.POST:
+        name = request.POST.get('player_name', 'Anonym')
+        score = request.session.get('guesses_left', 0)
+        difficulty = request.session.get('hangman_difficulty', 'normal')
+        if score > 0:
+            Highscore.objects.create(player_name=name, game="Galgenmännchen", difficulty=difficulty, score=score)
+        for key in ['secret_word', 'guessed_letters', 'guesses_left', 'hangman_difficulty']:
+            if key in request.session: del request.session[key]
+        return redirect(reverse('games:highscores'))
+
+    if 'hangman_difficulty' not in request.session:
+        return render(request, 'games/hangman.html')
+
+    secret_word = request.session.get('secret_word')
+    guessed_letters = request.session.get('guessed_letters', [])
+    guesses_left = request.session.get('guesses_left', 6)
+    message = ''
+    winner = None
+
+    if request.method == 'POST' and 'guess' in request.POST:
+        guess = request.POST.get('guess').upper()
+        if guess in alphabet and len(guess) == 1 and guess not in guessed_letters:
+            guessed_letters.append(guess)
+            if guess not in secret_word:
+                guesses_left -= 1
+
+    display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
+    if display_word == secret_word:
+        winner = 'player'
+        message = "🎉 Du hast gewonnen! 🎉 Das Wort war " + secret_word
+    elif guesses_left <= 0:
+        winner = 'computer'
+        message = "Du hast verloren! Das Wort war " + secret_word
+
+    request.session['guessed_letters'] = guessed_letters
+    request.session['guesses_left'] = guesses_left
+
+    context = {
+        'display_word': " ".join(display_word),
+        'guesses_left': guesses_left,
+        'guessed_letters': guessed_letters,
+        'alphabet': alphabet,
+        'winner': winner,
+        'message': message,
+    }
+    return render(request, 'games/hangman.html', context)
