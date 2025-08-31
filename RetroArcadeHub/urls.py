@@ -17,12 +17,11 @@ urlpatterns = [
     path('', TemplateView.as_view(template_name='home.html'), name='home'),
     path('games/', include('games.urls')),
 
-    # NEU: URLs für die Frontend-Seiten
     path('register/', game_views.register_page, name='register_page'),
     path('login/', game_views.login_page, name='login_page'),
 
-    # API-Pfade (bleiben unverändert)
+    # API-Pfade
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/', include('api.urls')),
+    # path('api/', include('api.urls')),
 ]

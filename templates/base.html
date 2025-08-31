@@ -4,77 +4,129 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GFN Retro Hub{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
+        /* --- Sternenhimmel Hintergrund (pure CSS) --- */
+        @keyframes move-stars {
+            from { background-position: 0 0; }
+            to   { background-position: -10000px 5000px; }
+        }
+        html {
+            height: 100%;
+            background: #000;
+            background-image:
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px),
+                radial-gradient(rgba(255,255,255,.4), rgba(255,255,255,.1) 2px, transparent 30px);
+            background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
+            background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
+            animation: move-stars 200s linear infinite;
+        }
+
+        /* --- Globales Styling --- */
         body {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            font-family: 'Press Start 2P', cursive; /* Retro-Schriftart, falls du eine einbinden möchtest */
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
             text-align: center;
             margin: 0;
             padding: 0;
         }
-        nav {
-            background-color: #333;
-            padding: 15px;
-            border-bottom: 3px solid #ffcc00;
-        }
-        nav a {
-            color: #ffcc00;
-            text-decoration: none;
-            margin: 0 15px;
-            font-size: 1.2em;
-        }
-        nav a:hover {
-            color: #fff;
-        }
         .container {
             padding: 20px;
+            min-height: calc(100vh - 180px); /* Stellt sicher, dass der Footer unten bleibt */
         }
-        h1, h2 {
-            color: #ffcc00;
+        a {
+            color: #00ffff; /* Cyan */
+            text-decoration: none;
         }
-        /* Style für Login/Logout-Bereich */
+        a:hover {
+            color: #ffff00; /* Gelb */
+        }
+        h1, h2, h3 {
+             color: #ffff00; /* Gelb */
+        }
+
+        /* --- Header & Navigation --- */
+        .header {
+            padding: 40px 10px 20px 10px;
+        }
+        .title-main {
+            font-size: 2.5em;
+            color: #ffff00; /* Gelb */
+            text-shadow: 3px 3px 0px #ff0000; /* Roter Schatten für 8-Bit-Effekt */
+            margin-bottom: 10px;
+        }
+        .title-sub {
+            font-size: 1em;
+            color: #00ffff; /* Cyan */
+            margin-bottom: 30px;
+        }
+        nav a {
+            font-size: 1.2em;
+            margin: 0 15px;
+        }
+
+        /* --- Login/Logout Bereich in der Navigation --- */
         .auth-links {
-            float: right;
+            margin-top: 20px;
+            font-size: 0.8em;
         }
         .auth-links a, .auth-links button {
+            display: inline-block;
             background: none;
-            border: 1px solid #ffcc00;
-            color: #ffcc00;
+            border: none;
+            color: #00ffff;
             padding: 5px 10px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 0.8em;
+            font-size: inherit;
             margin-left: 10px;
         }
         .auth-links button:hover, .auth-links a:hover {
-            background-color: #ffcc00;
-            color: #1a1a1a;
+            color: #ffff00;
+        }
+        
+        /* --- Footer --- */
+        footer {
+            padding: 20px;
+            font-size: 0.8em;
+            color: #ccc;
         }
     </style>
 </head>
 <body>
 
-    <nav>
-        <a href="{% url 'home' %}">Home</a>
-        <a href="{% url 'games:game_list' %}">Spiele</a>
-        <a href="{% url 'games:highscores' %}">Highscores</a>
+    <div class="header">
+        <div class="title-main">GFN RETRO HUB</div>
+        <div class="title-sub">DEINE REISE IN DIE GOLDENE ÄRA DES GAMINGS</div>
         
-        <div class="auth-links">
-            <a id="login-link" href="/login/">Login</a>
-            <a id="register-link" href="/register/">Registrieren</a>
-            <span id="user-greeting" style="display: none; color: #fff;"></span>
-            <button id="logout-button" style="display: none;">Logout</button>
-        </div>
-    </nav>
+        <nav>
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'games:game_list' %}">Spiele</a>
+            <a href="{% url 'games:highscores' %}">Highscores</a>
+            
+            <div class="auth-links">
+                <a id="login-link" href="{% url 'login_page' %}">Login</a>
+                <a id="register-link" href="{% url 'register_page' %}">Registrieren</a>
+                <span id="user-greeting" style="display: none;"></span>
+                <button id="logout-button" style="display: none;">Logout</button>
+            </div>
+        </nav>
+    </div>
 
     <div class="container">
         {% block content %}
         {% endblock %}
     </div>
 
+    <footer>
+        Copyright 2024 by Onur Acu
+    </footer>
+
     <script>
-        // Globale Logik für Login/Logout-Status
         document.addEventListener('DOMContentLoaded', function() {
             const accessToken = localStorage.getItem('accessToken');
             const loginLink = document.getElementById('login-link');
@@ -86,13 +138,9 @@
                 // Benutzer ist eingeloggt
                 loginLink.style.display = 'none';
                 registerLink.style.display = 'none';
-                
-                // Optional: Benutzernamen anzeigen (erfordert einen API-Endpunkt, um Benutzerdaten abzurufen)
-                // Fürs Erste zeigen wir eine generische Nachricht
-                userGreeting.textContent = 'Willkommen!'; 
+                userGreeting.textContent = 'Willkommen!'; // Später anpassbar mit Benutzernamen
                 userGreeting.style.display = 'inline';
                 logoutButton.style.display = 'inline';
-
             } else {
                 // Benutzer ist nicht eingeloggt
                 loginLink.style.display = 'inline';
@@ -104,7 +152,7 @@
             logoutButton.addEventListener('click', () => {
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
-                window.location.href = '/login/'; // Leite zum Login weiter
+                window.location.href = "{% url 'login_page' %}";
             });
         });
     </script>
