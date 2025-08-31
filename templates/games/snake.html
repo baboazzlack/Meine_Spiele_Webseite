@@ -1,207 +1,158 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}Snake{% endblock %}
 {% block content %}
     <h2>Snake</h2>
 
     <style>
-        #game-container {
-            position: relative;
-            width: 400px;
-            height: 400px;
-            margin: 0 auto;
-        }
-        #game-board {
-            border: 3px solid #32c8e6;
-        }
-        #overlay {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(12, 12, 28, 0.8);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-size: 1.2em;
-        }
+        #game-container { position: relative; width: 400px; height: 400px; margin: 0 auto; }
+        #game-board { border: 3px solid #32c8e6; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(12, 12, 28, 0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; }
+        .difficulty-button { display: inline-block; text-decoration: none; padding: 15px 25px; margin: 10px; border-radius: 0; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; font-family: 'Press Start 2P', cursive; }
+        .easy { background-color: #28a745; border-color: #28a745; }
+        .medium { background-color: #ffc107; border-color: #ffc107; color: #1a1a2e;}
+        .hard { background-color: #dc3545; border-color: #dc3545; }
     </style>
 
     <div id="game-container">
         <canvas id="game-board" width="400" height="400"></canvas>
         <div id="overlay">
             <h3>Snake</h3>
-            <p>Benutze die Pfeiltasten, um die Schlange zu steuern.</p>
-            <button id="start-button">Spiel starten</button>
+            <p>Wähle eine Schwierigkeit:</p>
+            <div>
+                <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
+                <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
+                <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
+            </div>
+            <p style="font-size: 0.8em; margin-top: 40px;">Steuerung: Pfeiltasten</p>
         </div>
     </div>
     <h3 id="score-display" style="margin-top: 20px;">Score: 0</h3>
     
     <script>
-        // Spiel-Setup
         const board = document.getElementById('game-board');
         const context = board.getContext('2d');
-        const gridSize = 20; // 20x20 Felder
+        const gridSize = 20;
         const tileSize = board.width / gridSize;
 
-        // Spiel-Variablen
-        let snake = [];
-        let food = {};
-        let score = 0;
-        let direction = 'right';
-        let isGameOver = true;
-        let gameLoop;
+        let snake, food, score, direction, isGameOver, gameLoop, currentDifficulty;
         
         const scoreDisplay = document.getElementById('score-display');
         const overlay = document.getElementById('overlay');
-        const startButton = document.getElementById('start-button');
 
-        // Initialisiert oder startet das Spiel neu
-        function startGame() {
-            snake = [{x: 10, y: 10}]; // Startposition der Schlange
+        function startGame(difficulty) {
+            currentDifficulty = difficulty;
+            const speedMap = { easy: 150, medium: 100, hard: 60 };
+            
+            snake = [{x: 10, y: 10}];
             direction = 'right';
             score = 0;
             isGameOver = false;
             scoreDisplay.textContent = 'Score: 0';
             placeFood();
 
-            overlay.style.display = 'none'; // Overlay ausblenden
+            overlay.style.display = 'none';
             
-            // Alte Spiel-Schleife stoppen und neue starten
             clearInterval(gameLoop);
-            gameLoop = setInterval(updateGame, 100); // Spielgeschwindigkeit: 100ms
+            gameLoop = setInterval(updateGame, speedMap[difficulty]);
         }
 
-        // Platziert neues Futter an einer zufälligen Stelle
         function placeFood() {
             food = {
                 x: Math.floor(Math.random() * gridSize),
                 y: Math.floor(Math.random() * gridSize)
             };
-            // Sicherstellen, dass Futter nicht auf der Schlange landet
             for (let segment of snake) {
                 if (segment.x === food.x && segment.y === food.y) {
                     placeFood();
-                    break;
+                    return;
                 }
             }
         }
 
-        // Haupt-Spielschleife
         function updateGame() {
             if (isGameOver) return;
 
-            // Schlange bewegen
             const head = {x: snake[0].x, y: snake[0].y};
             if (direction === 'right') head.x++;
             if (direction === 'left') head.x--;
             if (direction === 'up') head.y--;
             if (direction === 'down') head.y++;
 
-            // Kollisions-Prüfung (Wand oder sich selbst)
             if (head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize || checkCollision(head)) {
                 gameOver();
                 return;
             }
 
-            snake.unshift(head); // Neuen Kopf hinzufügen
+            snake.unshift(head);
 
-            // Futter-Prüfung
             if (head.x === food.x && head.y === food.y) {
                 score++;
                 scoreDisplay.textContent = 'Score: ' + score;
                 placeFood();
             } else {
-                snake.pop(); // Letztes Segment entfernen, wenn kein Futter gegessen wurde
+                snake.pop();
             }
             
             draw();
         }
 
-        // Zeichnet alles auf die Leinwand
         function draw() {
-            // Hintergrund
             context.fillStyle = '#1a1a2e';
             context.fillRect(0, 0, board.width, board.height);
-
-            // Schlange
-            context.fillStyle = '#28a745'; // Grün
+            context.fillStyle = '#28a745';
             for (const segment of snake) {
                 context.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize - 1, tileSize - 1);
             }
-
-            // Futter
-            context.fillStyle = '#e94560'; // Pink
+            context.fillStyle = '#e94560';
             context.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
         }
         
-        // Prüft, ob der Kopf mit dem Körper kollidiert
         function checkCollision(head) {
             for (let i = 1; i < snake.length; i++) {
-                if (head.x === snake[i].x && head.y === snake[i].y) {
-                    return true;
-                }
+                if (head.x === snake[i].x && head.y === snake[i].y) return true;
             }
             return false;
         }
 
-        // Spielende
         function gameOver() {
             isGameOver = true;
             clearInterval(gameLoop);
-            overlay.style.display = 'flex'; // Overlay wieder einblenden
+            overlay.style.display = 'flex';
             
-            // Erstelle das Formular zum Speichern des Highscores
             overlay.innerHTML = `
                 <h3>Game Over!</h3>
                 <p>Dein Score: ${score}</p>
                 <form id="highscore-form">
-                    <input type="text" id="player-name" placeholder="Dein Name..." required>
+                    <input type="text" id="player-name" placeholder="Dein Name..." style="font-family: 'Press Start 2P', cursive; padding: 10px; margin: 5px; border-radius: 0; border: 1px solid #533483; background-color: #0f3460; color: #e0e0e0;" required>
                     <button type="submit">Highscore speichern</button>
                 </form>
-                <button onclick="startGame()">Nochmal spielen</button>
+                <p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p>
+                <div>
+                    <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
+                    <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
+                    <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
+                </div>
             `;
 
-            const highscoreForm = document.getElementById('highscore-form');
-            highscoreForm.addEventListener('submit', function(event) {
-                event.preventDefault(); // Verhindert das Neuladen der Seite
+            document.getElementById('highscore-form').addEventListener('submit', function(event) {
+                event.preventDefault();
                 const playerName = document.getElementById('player-name').value;
                 
-                // Sende Daten an den Django-Server
                 fetch("{% url 'games:save_score' %}", {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}' // CSRF-Token für Sicherheit
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify({
-                        player_name: playerName,
-                        score: score,
-                        game: 'Snake',
-                        difficulty: 'normal' // Snake hat (noch) keine Schwierigkeitsstufen
+                        player_name: playerName, score: score, game: 'Snake', difficulty: currentDifficulty
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                        // Leite zur Highscore-Seite weiter
-                        window.location.href = "{% url 'games:highscores' %}";
-                    }
-                });
+                }).then(() => window.location.href = "{% url 'games:highscores' %}");
             });
         }
 
-        // Steuerung mit Pfeiltasten
         document.addEventListener('keydown', e => {
             if (e.key === 'ArrowUp' && direction !== 'down') direction = 'up';
-            if (e.key === 'ArrowDown' && direction !== 'up') direction = 'down';
-            if (e.key === 'ArrowLeft' && direction !== 'right') direction = 'left';
-            if (e.key === 'ArrowRight' && direction !== 'left') direction = 'right';
+            else if (e.key === 'ArrowDown' && direction !== 'up') direction = 'down';
+            else if (e.key === 'ArrowLeft' && direction !== 'right') direction = 'left';
+            else if (e.key === 'ArrowRight' && direction !== 'left') direction = 'right';
         });
-
-        // Event Listener für den Start-Button
-        startButton.addEventListener('click', startGame);
-
     </script>
 {% endblock %}
