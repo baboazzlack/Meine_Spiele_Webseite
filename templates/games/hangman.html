@@ -64,6 +64,9 @@
                     {% endfor %}
                 </form>
             </div>
+            <div style="margin-top: 20px;">
+                <a href="{% url 'games:hangman' %}?reset=true" class="play-button" style="display:inline-block; text-decoration:none; padding:10px 20px; border-radius:0; background-color:#6c757d;">Spiel neustarten</a>
+            </div>
         {% endif %}
     {% endif %}
 
