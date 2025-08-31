@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Zahlen Raten{% endblock %}
+
+{% block content %}
+    <h2>Zahlen Raten</h2>
+    
+    <h3>{{ message }}</h3>
+
+    {% if "Richtig!" not in message %}
+        <form method="post" action="{% url 'games:guess_the_number' %}">
+            {% csrf_token %}
+            <input type="number" name="guess" min="1" max="100" placeholder="Deine Zahl..." required autofocus>
+            <button type="submit">Raten!</button>
+        </form>
+    {% else %}
+        <a href="{% url 'games:guess_the_number' %}?reset=true" style="display:inline-block; background-color:#e94560; color:#FFF; padding:10px 20px; text-decoration:none; border-radius:5px;">Nochmal spielen</a>
+    {% endif %}
+
+    <p style="margin-top: 30px;"><a href="{% url 'games:game_list' %}">Zurück zur Spiele-Übersicht</a></p>
+{% endblock %}
