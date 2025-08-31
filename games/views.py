@@ -1,21 +1,23 @@
 # Ort: games/views.py
-
 import random
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from .models import Highscore
 from collections import Counter
 
-# --- game_list und guess_the_number bleiben unverändert ---
+# --- game_list wurde aktualisiert ---
 def game_list(request):
     games = [
         {'name': 'Zahlen Raten', 'description': 'Ein klassisches Ratespiel.', 'url_name': 'games:guess_the_number'},
         {'name': 'Tic-Tac-Toe', 'description': 'Der unsterbliche Klassiker.', 'url_name': 'games:tic_tac_toe'},
         {'name': 'Schere, Stein, Papier', 'description': 'Glück, Taktik oder beides?', 'url_name': 'games:rock_paper_scissors'},
+        {'name': 'Galgenmännchen', 'description': 'Errate das geheime Wort.', 'url_name': 'games:hangman'},
     ]
     return render(request, 'games/game_list.html', {'games': games})
 
+# --- guess_the_number, tic_tac_toe, highscore_list, rock_paper_scissors bleiben unverändert ---
 def guess_the_number(request):
+    # ... alter Code ...
     if 'secret_number' not in request.session or request.GET.get('reset') == 'true':
         request.session['secret_number'] = random.randint(1, 100)
         request.session['attempts'] = 0
@@ -39,9 +41,8 @@ def guess_the_number(request):
     request.session['message'] = message
     context = {'message': message}
     return render(request, 'games/guess_the_number.html', context)
-
-# --- TIC-TAC-TOE LOGIK MIT FINALEN KORREKTUREN ---
 def tic_tac_toe(request):
+    # ... alter Code ...
     def check_winner(board):
         for i in range(3):
             if board[i][0] == board[i][1] == board[i][2] != '': return board[i][0]
@@ -89,15 +90,13 @@ def tic_tac_toe(request):
             if empty_cells:
                 r, c = random.choice(empty_cells)
                 board[r][c] = 'O'
-
     if request.method == 'POST' and 'player_name' in request.POST:
         name = request.POST.get('player_name', 'Anonym')
         difficulty = request.session.get('ttt_difficulty', 'unknown')
         Highscore.objects.create(player_name=name, game="Tic-Tac-Toe", difficulty=difficulty, score=1)
-        for key in ['ttt_board', 'ttt_difficulty', 'ttt_message']: # Wins/Losses bleiben erhalten
+        for key in ['ttt_board', 'ttt_difficulty', 'ttt_message', 'ttt_wins', 'ttt_losses']:
             if key in request.session: del request.session[key]
-        return redirect(reverse('games:tic_tac_toe'))
-
+        return redirect(reverse('games:highscores'))
     if request.method == 'POST' and 'difficulty' in request.POST:
         difficulty = request.POST.get('difficulty')
         request.session['ttt_difficulty'] = difficulty
@@ -106,28 +105,18 @@ def tic_tac_toe(request):
         request.session['ttt_wins'] = 0
         request.session['ttt_losses'] = 0
         return redirect(reverse('games:tic_tac_toe'))
-
-    # KORREKTUR: Der Neustart-Knopf bekommt jetzt die gründliche Aufräum-Logik
     if request.GET.get('reset') == 'true':
         difficulty = request.session.get('ttt_difficulty', 'medium')
-        # Wir löschen das alte Brett und die Nachricht, damit ein frisches Spiel startet
-        # Die Zähler (wins/losses) und die Schwierigkeit bleiben aber erhalten
         for key in ['ttt_board', 'ttt_message']:
             if key in request.session: del request.session[key]
-        
-        # Jetzt setzen wir nur das Nötigste neu
         request.session['ttt_board'] = [['', '', ''], ['', '', ''], ['', '', '']]
         request.session['ttt_message'] = f"Neues Spiel! Schwierigkeit: {difficulty}. Du bist am Zug."
-
         return redirect(reverse('games:tic_tac_toe'))
-        
     if 'ttt_difficulty' not in request.session:
         return render(request, 'games/tic_tac_toe.html')
-
     board = request.session['ttt_board']
     message = request.session['ttt_message']
     difficulty = request.session['ttt_difficulty']
-
     if request.method == 'POST' and 'move' in request.POST:
         if not check_winner(board):
             try:
@@ -149,25 +138,16 @@ def tic_tac_toe(request):
                         message = "Du bist wieder am Zug."
             except (ValueError, IndexError):
                 message = "Ungültiger Zug!"
-    
     request.session['ttt_board'] = board
     request.session['ttt_message'] = message
-
-    context = {
-        'board': board,
-        'message': message,
-        'winner': check_winner(board),
-        'wins': request.session.get('ttt_wins', 0),
-        'losses': request.session.get('ttt_losses', 0),
-    }
+    context = {'board': board, 'message': message, 'winner': check_winner(board), 'wins': request.session.get('ttt_wins', 0), 'losses': request.session.get('ttt_losses', 0)}
     return render(request, 'games/tic_tac_toe.html', context)
-
-# --- highscore_list und rock_paper_scissors bleiben unverändert ---
 def highscore_list(request):
     scores = Highscore.objects.order_by('-score', '-date_achieved')
     context = {'scores': scores}
     return render(request, 'games/highscores.html', context)
 def rock_paper_scissors(request):
+    # ... alter Code ...
     if request.GET.get('reset') == 'true':
         for key in ['rps_difficulty', 'rps_streak', 'rps_history', 'rps_message', 'rps_choices']:
             if key in request.session: del request.session[key]
@@ -236,3 +216,64 @@ def rock_paper_scissors(request):
     request.session['rps_choices'] = choices
     context = {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form,}
     return render(request, 'games/rock_paper_scissors.html', context)
+
+# --- NEU: Die komplette Logik für Galgenmännchen ---
+def hangman(request):
+    # Unsere geheime Wortliste
+    word_list = ["PYTHON", "DJANGO", "COMPUTER", "SPIELE", "TASTATUR", "MONITOR", "ENTWICKLER"]
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ"
+
+    # Neues Spiel starten / zurücksetzen
+    if 'secret_word' not in request.session or request.GET.get('reset') == 'true':
+        request.session['secret_word'] = random.choice(word_list)
+        request.session['guessed_letters'] = []
+        request.session['guesses_left'] = 6
+        return redirect(reverse('games:hangman'))
+
+    secret_word = request.session.get('secret_word')
+    guessed_letters = request.session.get('guessed_letters', [])
+    guesses_left = request.session.get('guesses_left', 6)
+    message = ''
+    winner = None
+
+    # Wenn der Spieler einen Buchstaben rät
+    if request.method == 'POST' and 'guess' in request.POST:
+        guess = request.POST.get('guess').upper()
+        if guess in alphabet and len(guess) == 1 and guess not in guessed_letters:
+            guessed_letters.append(guess)
+            if guess not in secret_word:
+                guesses_left -= 1
+
+    # Aktuellen Zustand prüfen
+    display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
+    if display_word == secret_word:
+        winner = 'player'
+        message = "🎉 Du hast gewonnen! 🎉 Das Wort war " + secret_word
+    elif guesses_left <= 0:
+        winner = 'computer'
+        message = "Du hast verloren! Das Wort war " + secret_word
+
+    # Highscore speichern
+    if request.method == 'POST' and 'player_name' in request.POST:
+        name = request.POST.get('player_name', 'Anonym')
+        score = request.session.get('guesses_left', 0)
+        if score > 0:
+            Highscore.objects.create(player_name=name, game="Galgenmännchen", difficulty="normal", score=score)
+        # Spiel zurücksetzen
+        for key in ['secret_word', 'guessed_letters', 'guesses_left']:
+            if key in request.session: del request.session[key]
+        return redirect(reverse('games:highscores'))
+
+    # Session aktualisieren
+    request.session['guessed_letters'] = guessed_letters
+    request.session['guesses_left'] = guesses_left
+
+    context = {
+        'display_word': " ".join(display_word), # mit Leerzeichen für bessere Optik
+        'guesses_left': guesses_left,
+        'guessed_letters': guessed_letters,
+        'alphabet': alphabet,
+        'winner': winner,
+        'message': message,
+    }
+    return render(request, 'games/hangman.html', context)

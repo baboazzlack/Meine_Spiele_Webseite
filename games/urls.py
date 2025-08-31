@@ -7,6 +7,7 @@ urlpatterns = [
     path('zahlen-raten/', views.guess_the_number, name='guess_the_number'),
     path('tic-tac-toe/', views.tic_tac_toe, name='tic_tac_toe'),
     path('highscores/', views.highscore_list, name='highscores'),
-    # NEU: Die Adresse für Schere, Stein, Papier
     path('schere-stein-papier/', views.rock_paper_scissors, name='rock_paper_scissors'),
+    # NEU: Die Adresse für Galgenmännchen
+    path('galgenmaennchen/', views.hangman, name='hangman'),
 ]
