@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Schere, Stein, Papier{% endblock %}
+{% block content %}
+    <h2>Schere, Stein, Papier</h2>
+
+    <style>
+        .move-button {
+            font-size: 3em;
+            background: none;
+            border: 3px solid #32c8e6;
+            padding: 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .move-button:hover {
+            background-color: rgba(233, 69, 96, 0.2);
+        }
+        .difficulty-button {
+            display: inline-block; text-decoration: none; padding: 15px 25px;
+            margin: 10px; border-radius: 0; font-size: 1em;
+            color: #FFFFFF; cursor: pointer; border: 2px solid;
+        }
+        .easy { background-color: #28a745; border-color: #28a745; }
+        .medium { background-color: #ffc107; border-color: #ffc107; color: #1a1a2e;}
+        .hard { background-color: #dc3545; border-color: #dc3545; }
+    </style>
+
+    {% if 'rps_difficulty' not in request.session %}
+        <h3>Wähle eine Schwierigkeitsstufe:</h3>
+        <form method="post">
+            {% csrf_token %}
+            <button class="difficulty-button easy" type="submit" name="difficulty" value="easy">Leicht</button>
+            <button class="difficulty-button medium" type="submit" name="difficulty" value="medium">Mittel</button>
+            <button class="difficulty-button hard" type="submit" name="difficulty" value="hard">Schwer</button>
+        </form>
+    {% else %}
+        <h3>{{ message }}</h3>
+        <h4>Aktuelle Siegesserie: {{ streak }}</h4>
+
+        {% if choices %}
+        <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0;">
+            <div style="text-align: center; margin: 0 20px;">
+                <div>Dein Zug</div>
+                <div class="move-button">{{ choices.player|first }}</div>
+            </div>
+            <div style="font-size: 2em;">vs</div>
+            <div style="text-align: center; margin: 0 20px;">
+                <div>Computer</div>
+                <div class="move-button">{{ choices.computer|first }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if show_highscore_form and streak > 0 %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="text" name="player_name" placeholder="Dein Name..." required>
+                <button type="submit">Siegesserie ({{ streak }}) speichern!</button>
+            </form>
+            <a href="{% url 'games:rock_paper_scissors' %}?reset=true" class="play-button" style="display:inline-block; text-decoration:none; padding:10px 20px;">Weiterspielen</a>
+        {% else %}
+            <form method="post">
+                {% csrf_token %}
+                <button class="move-button" type="submit" name="move" value="Schere">✂️</button>
+                <button class="move-button" type="submit" name="move" value="Stein">🪨</button>
+                <button class="move-button" type="submit" name="move" value="Papier">📄</button>
+            </form>
+            <p><a href="{% url 'games:rock_paper_scissors' %}?reset=true">Spiel neustarten</a></p>
+        {% endif %}
+    {% endif %}
+
+    <p style="margin-top: 30px;"><a href="{% url 'games:game_list' %}">Zurück zur Spiele-Übersicht</a></p>
+{% endblock %}
