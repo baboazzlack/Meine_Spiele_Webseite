@@ -1,6 +1,7 @@
-﻿# Ort: games/views.py
-# (Ich kürze hier die unveränderten Spiele ab, um es übersichtlicher zu machen)
-import random, json
+﻿# Ort: games/views.py - Finale, geprüfte Version
+
+import random
+import json
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -8,7 +9,6 @@ from .models import Highscore
 from collections import Counter
 
 def game_list(request):
-    # ... (unverändert)
     games = [
         {'name': 'Zahlen Raten', 'description': 'Ein klassisches Ratespiel.', 'url_name': 'games:guess_the_number'},
         {'name': 'Tic-Tac-Toe', 'description': 'Der unsterbliche Klassiker.', 'url_name': 'games:tic_tac_toe'},
@@ -21,25 +21,29 @@ def game_list(request):
     return render(request, 'games/game_list.html', {'games': games})
 
 def guess_the_number(request):
-    # ... (unverändert)
     if 'secret_number' not in request.session or request.GET.get('reset') == 'true':
-        request.session.update({'secret_number': random.randint(1, 100), 'attempts': 0, 'message': "Ich habe mir eine Zahl zwischen 1 und 100 ausgedacht. Rate mal!"})
+        request.session['secret_number'] = random.randint(1, 100)
+        request.session['attempts'] = 0
+        request.session['message'] = "Ich habe mir eine Zahl zwischen 1 und 100 ausgedacht. Rate mal!"
     if request.method == 'POST':
         try:
             guess = int(request.POST.get('guess', 0))
             request.session['attempts'] += 1
-            if guess < request.session['secret_number']: request.session['message'] = f"Deine Zahl {guess} ist zu niedrig! Versuch's nochmal."
-            elif guess > request.session['secret_number']: request.session['message'] = f"Deine Zahl {guess} ist zu hoch! Versuch's nochmal."
+            secret_number = request.session['secret_number']
+            if guess < secret_number:
+                request.session['message'] = f"Deine Zahl {guess} ist zu niedrig! Versuch's nochmal."
+            elif guess > secret_number:
+                request.session['message'] = f"Deine Zahl {guess} ist zu hoch! Versuch's nochmal."
             else:
-                request.session['message'] = f"🎉 Richtig! Die Zahl war {request.session['secret_number']}! Du hast {request.session['attempts']} Versuche gebraucht. 🎉"
+                attempts = request.session['attempts']
+                request.session['message'] = f"🎉 Richtig! Die Zahl war {secret_number}! Du hast {attempts} Versuche gebraucht. 🎉"
                 del request.session['secret_number']
-        except (ValueError, TypeError): request.session['message'] = "Das war keine gültige Zahl!"
+        except (ValueError, TypeError):
+            request.session['message'] = "Das war keine gültige Zahl!"
     return render(request, 'games/guess_the_number.html', {'message': request.session.get('message', '')})
 
 def tic_tac_toe(request):
-    # --- KORRIGIERTE LOGIK FÜR TIC-TAC-TOE ---
     def check_winner(board):
-        # ... (unverändert)
         for i in range(3):
             if board[i][0] == board[i][1] == board[i][2] != '': return board[i][0]
             if board[0][i] == board[1][i] == board[2][i] != '': return board[0][i]
@@ -48,7 +52,6 @@ def tic_tac_toe(request):
         if all(all(cell != '' for cell in row) for row in board): return 'draw'
         return None
     def computer_move(board, difficulty):
-        # ... (unverändert)
         empty_cells = [(r, c) for r in range(3) for c in range(3) if board[r][c] == '']
         if not empty_cells: return
         if difficulty == 'easy': r, c = random.choice(empty_cells); board[r][c] = 'O'; return
@@ -63,32 +66,25 @@ def tic_tac_toe(request):
         if difficulty == 'medium': r, c = random.choice(empty_cells); board[r][c] = 'O'; return
         if difficulty == 'hard':
             if board[1][1] == '': board[1][1] = 'O'; return
-            corners = [(0,0),(0,2),(2,0),(2,2)]; random.shuffle(corners)
-            for r,c in corners:
+            corners = [(0, 0), (0, 2), (2, 0), (2, 2)]; random.shuffle(corners)
+            for r, c in corners:
                 if board[r][c] == '': board[r][c] = 'O'; return
             r, c = random.choice(empty_cells); board[r][c] = 'O'
-    
-    # Spiel zurücksetzen ODER Highscore speichern ODER Schwierigkeit wählen
-    if request.GET.get('reset') == 'true' or (request.method == 'POST' and 'player_name' in request.POST):
-        if request.method == 'POST' and 'player_name' in request.POST:
-            Highscore.objects.create(player_name=request.POST.get('player_name','Anonym'), game="Tic-Tac-Toe", difficulty=request.session.get('ttt_difficulty','unknown'), score=1)
-        # KORREKTUR: Wir löschen immer alles, um sauber zur Auswahl zurückzukehren
-        for key in ['ttt_board', 'ttt_difficulty', 'ttt_message', 'ttt_wins', 'ttt_losses']:
-            request.session.pop(key, None)
-        # Wenn Highscore gespeichert wurde, zur Liste, sonst zum Spiel
-        if request.method == 'POST' and 'player_name' in request.POST:
-             return redirect(reverse('games:highscores'))
-        return redirect(reverse('games:tic_tac_toe'))
 
+    if request.method == 'POST' and 'player_name' in request.POST:
+        Highscore.objects.create(player_name=request.POST.get('player_name','Anonym'), game="Tic-Tac-Toe", difficulty=request.session.get('ttt_difficulty','unknown'), score=1)
+        for key in ['ttt_board', 'ttt_difficulty', 'ttt_message', 'ttt_wins', 'ttt_losses']: request.session.pop(key, None)
+        return redirect(reverse('games:highscores'))
+    if request.GET.get('reset') == 'true':
+        for key in ['ttt_board', 'ttt_difficulty', 'ttt_message', 'ttt_wins', 'ttt_losses']: request.session.pop(key, None)
+        return redirect(reverse('games:tic_tac_toe'))
     if request.method == 'POST' and 'difficulty' in request.POST:
         difficulty = request.POST.get('difficulty')
         request.session.update({'ttt_difficulty':difficulty, 'ttt_board':[['','',''],['','',''],['','','']], 'ttt_message':f"Du bist Spieler X. Schwierigkeit: {difficulty}. Mach deinen Zug!", 'ttt_wins':0, 'ttt_losses':0})
         return redirect(reverse('games:tic_tac_toe'))
 
-    if 'ttt_difficulty' not in request.session:
-        return render(request, 'games/tic_tac_toe.html')
-
-    # Spiel-Logik für einen Zug
+    if 'ttt_difficulty' not in request.session: return render(request, 'games/tic_tac_toe.html')
+    
     board, message = request.session['ttt_board'], request.session['ttt_message']
     if request.method == 'POST' and 'move' in request.POST and not check_winner(board):
         try:
@@ -108,12 +104,10 @@ def tic_tac_toe(request):
     return render(request, 'games/tic_tac_toe.html', context)
 
 def highscore_list(request):
-    # ... (unverändert)
     scores = Highscore.objects.order_by('-score', '-date_achieved')
     return render(request, 'games/highscores.html', {'scores': scores})
 
 def rock_paper_scissors(request):
-    # ... (unverändert)
     if request.GET.get('reset') == 'true':
         for k in ['rps_difficulty','rps_streak','rps_history','rps_message','rps_choices']: request.session.pop(k, None)
         return redirect(reverse('games:rock_paper_scissors'))
@@ -122,8 +116,7 @@ def rock_paper_scissors(request):
         request.session.update({'rps_difficulty':difficulty, 'rps_streak':0, 'rps_history':[], 'rps_message':f"Schwierigkeit: {difficulty}. Wähle dein Zeichen!"})
         return redirect(reverse('games:rock_paper_scissors'))
     if request.method == 'POST' and 'player_name' in request.POST:
-        streak = request.session.get('rps_streak', 0)
-        if streak > 0: Highscore.objects.create(player_name=request.POST.get('player_name','Anonym'), game="Schere, Stein, Papier", difficulty=request.session.get('rps_difficulty','unknown'), score=streak)
+        if request.session.get('rps_streak', 0) > 0: Highscore.objects.create(player_name=request.POST.get('player_name','Anonym'), game="Schere, Stein, Papier", difficulty=request.session.get('rps_difficulty','unknown'), score=request.session.get('rps_streak', 0))
         for k in ['rps_difficulty','rps_streak','rps_history','rps_message','rps_choices']: request.session.pop(k, None)
         return redirect(reverse('games:highscores'))
     if 'rps_difficulty' not in request.session: return render(request, 'games/rock_paper_scissors.html')
@@ -145,14 +138,14 @@ def rock_paper_scissors(request):
             result, streak = 'Du gewinnst!', streak + 1
             request.session['rps_last_win'] = player_move
         else: result, streak, show_highscore_form = 'Computer gewinnt!', 0, True
-        message, choices = f"Du: {player_move}, PC: {computer_move}. {result}", {'player': player_move, 'computer': computer_move}
+        message = f"Du: {player_move}, PC: {computer_move}. {result}"
+        choices = {'player': player_move, 'computer': computer_move}
         request.session['rps_history'] = history[-10:]
     request.session.update({'rps_message':message, 'rps_streak':streak, 'rps_choices':choices})
     return render(request, 'games/rock_paper_scissors.html', {'message': message, 'streak': streak, 'choices': choices, 'show_highscore_form': show_highscore_form})
 
 def hangman(request):
-    # ... (unverändert)
-    word_lists = {'easy':["HAUS","AUTO","BALL"],"medium":["PYTHON","DJANGO","TASTATUR"],"hard":["BIBLIOTHEK","ALGORITHMUS"]}
+    word_lists = {'easy':["HAUS","AUTO","BALL"],"medium":["PYTHON","DJANGO"],"hard":["BIBLIOTHEK","ALGORITHMUS"]}
     guesses_map = {'easy': 8, 'medium': 6, 'hard': 5}
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ"
     if request.method == 'POST' and 'difficulty' in request.POST:
@@ -177,24 +170,15 @@ def hangman(request):
     display_word = "".join([letter if letter in guessed_letters else "_" for letter in secret_word])
     if display_word == secret_word: winner, message = 'player', "🎉 Du hast gewonnen! 🎉 Das Wort war " + secret_word
     elif guesses_left <= 0: winner, message = 'computer', "Du hast verloren! Das Wort war " + secret_word
-    request.session['guessed_letters'], request.session['guesses_left'] = guessed_letters, guesses_left
+    request.session.update({'guessed_letters':guessed_letters, 'guesses_left':guesses_left})
     context = {'display_word':" ".join(display_word), 'guesses_left':guesses_left, 'guessed_letters':guessed_letters, 'alphabet':alphabet, 'winner':winner, 'message':message}
     return render(request, 'games/hangman.html', context)
 
-def snake(request): 
-    # ... (unverändert)
-    return render(request, 'games/snake.html')
-
-def pong(request): 
-    # ... (unverändert)
-    return render(request, 'games/pong.html')
-    
-def tetris(request):
-    # ... (unverändert)
-    return render(request, 'games/tetris.html')
+def snake(request): return render(request, 'games/snake.html')
+def pong(request): return render(request, 'games/pong.html')
+def tetris(request): return render(request, 'games/tetris.html')
 
 def save_score(request):
-    # ... (unverändert)
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
