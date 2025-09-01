@@ -1,107 +1,17 @@
-﻿<!DOCTYPE html>
+﻿{% load static %}
+<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GFN Retro Hub{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-        /* --- Sternenhimmel Hintergrund (pure CSS) --- */
-        @keyframes move-stars {
-            from { background-position: 0 0; }
-            to   { background-position: -10000px 5000px; }
-        }
-        html {
-            height: 100%;
-            background: #000;
-            background-image:
-                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
-                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
-                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px),
-                radial-gradient(rgba(255,255,255,.4), rgba(255,255,255,.1) 2px, transparent 30px);
-            background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
-            background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
-            animation: move-stars 200s linear infinite;
-        }
-
-        /* --- Globales Styling --- */
-        body {
-            font-family: 'Press Start 2P', cursive;
-            color: #fff;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            padding: 20px;
-            min-height: calc(100vh - 180px); /* Stellt sicher, dass der Footer unten bleibt */
-        }
-        a {
-            color: #00ffff; /* Cyan */
-            text-decoration: none;
-        }
-        a:hover {
-            color: #ffff00; /* Gelb */
-        }
-        h1, h2, h3 {
-             color: #ffff00; /* Gelb */
-        }
-
-        /* --- Header & Navigation --- */
-        .header {
-            padding: 40px 10px 20px 10px;
-        }
-        .title-main {
-            font-size: 2.5em;
-            color: #ffff00; /* Gelb */
-            text-shadow: 3px 3px 0px #ff0000; /* Roter Schatten für 8-Bit-Effekt */
-            margin-bottom: 10px;
-        }
-        .title-sub {
-            font-size: 1em;
-            color: #00ffff; /* Cyan */
-            margin-bottom: 30px;
-        }
-        nav a {
-            font-size: 1.2em;
-            margin: 0 15px;
-        }
-
-        /* --- Login/Logout Bereich in der Navigation --- */
-        .auth-links {
-            margin-top: 20px;
-            font-size: 0.8em;
-        }
-        .auth-links a, .auth-links button {
-            display: inline-block;
-            background: none;
-            border: none;
-            color: #00ffff;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: inherit;
-            margin-left: 10px;
-        }
-        .auth-links button:hover, .auth-links a:hover {
-            color: #ffff00;
-        }
-        
-        /* --- Footer --- */
-        footer {
-            padding: 20px;
-            font-size: 0.8em;
-            color: #ccc;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
 </head>
 <body>
 
-    <div class="header">
-        <div class="title-main">GFN RETRO HUB</div>
-        <div class="title-sub">DEINE REISE IN DIE GOLDENE ÄRA DES GAMINGS</div>
+    <header class="site-header">
+        <h1 class="title-main">GFN RETRO HUB</h1>
+        <p class="title-sub">DEINE REISE IN DIE GOLDENE ÄRA DES GAMINGS</p>
         
         <nav>
             <a href="{% url 'home' %}">Home</a>
@@ -115,18 +25,19 @@
                 <button id="logout-button" style="display: none;">Logout</button>
             </div>
         </nav>
-    </div>
+    </header>
 
-    <div class="container">
+    <main class="main-content">
         {% block content %}
         {% endblock %}
-    </div>
+    </main>
 
-    <footer>
+    <footer class="site-footer">
         Copyright 2024 by Onur Acu
     </footer>
 
     <script>
+        // Das JavaScript bleibt unverändert
         document.addEventListener('DOMContentLoaded', function() {
             const accessToken = localStorage.getItem('accessToken');
             const loginLink = document.getElementById('login-link');
@@ -135,14 +46,12 @@
             const logoutButton = document.getElementById('logout-button');
 
             if (accessToken) {
-                // Benutzer ist eingeloggt
                 loginLink.style.display = 'none';
                 registerLink.style.display = 'none';
-                userGreeting.textContent = 'Willkommen!'; // Später anpassbar mit Benutzernamen
+                userGreeting.textContent = 'Willkommen!';
                 userGreeting.style.display = 'inline';
                 logoutButton.style.display = 'inline';
             } else {
-                // Benutzer ist nicht eingeloggt
                 loginLink.style.display = 'inline';
                 registerLink.style.display = 'inline';
                 userGreeting.style.display = 'none';
