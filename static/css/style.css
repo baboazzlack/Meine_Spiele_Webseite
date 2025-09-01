@@ -1,240 +1,273 @@
-/* Vollständiger Inhalt für: static/css/style.css */
-
-/* --- Import der Google Font --- */
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-/* --- Globale Einstellungen & Sternenhimmel (nicht animiert) --- */
+/* Keyframes für Animationen */
+@keyframes neon-glow {
+  from {
+    text-shadow: 3px 3px 0px #ff0000, 0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ff00ff, 0 0 40px #ff00ff;
+  }
+  to {
+    text-shadow: 3px 3px 0px #ff0000, 0 0 20px #ffff00, 0 0 30px #ff00ff, 0 0 40px #ff00ff, 0 0 50px #00ffff;
+  }
+}
+
+@keyframes flicker {
+  0% { opacity: 0.2; }
+  5% { opacity: 0.25; }
+  10% { opacity: 0.22; }
+  15% { opacity: 0.2; }
+  25% { opacity: 0.28; }
+  30% { opacity: 0.25; }
+  100% { opacity: 0.2; }
+}
+
 html {
-    height: 100%;
+  height: 100%;
 }
 
 body {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    margin: 0;
-    background-color: #000;
-    background-image:
-        radial-gradient(white, rgba(255, 255, 255, .2) 2px, transparent 40px),
-        radial-gradient(white, rgba(255, 255, 255, .15) 1px, transparent 30px),
-        radial-gradient(white, rgba(255, 255, 255, .1) 2px, transparent 40px),
-        radial-gradient(rgba(255, 255, 255, .4), rgba(255, 255, 255, .1) 2px, transparent 30px);
-    background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
-    background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
-    font-family: 'Press Start 2P', cursive;
-    color: #fff;
-    text-align: center;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0;
+  background-color: #000;
+  background-image:
+    radial-gradient(white, rgba(255, 255, 255, .2) 2px, transparent 40px),
+    radial-gradient(white, rgba(255, 255, 255, .15) 1px, transparent 30px),
+    radial-gradient(white, rgba(255, 255, 255, .1) 2px, transparent 40px),
+    radial-gradient(rgba(255, 255, 255, .4), rgba(255, 255, 255, .1) 2px, transparent 30px);
+  background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
+  /* WICHTIG: Die background-position wurde hier entfernt. Sie wird jetzt von JS gesteuert. */
+  font-family: 'Press Start 2P', cursive;
+  color: #fff;
+  text-align: center;
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* --- Allgemeine Stile für Links und Überschriften --- */
+body::after {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 3px 100%;
+  z-index: 100;
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+}
+
 a {
-    color: #00ffff;
-    text-decoration: none;
-    transition: color 0.2s ease-in-out;
+  color: #00ffff;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
 }
 
 a:hover {
-    color: #ffff00;
+  color: #ffff00;
+  text-shadow: 0 0 5px #ffff00, 0 0 10px #ff00ff;
 }
 
 h1, h2, h3 {
-    color: #ffff00;
+  color: #ffff00;
 }
 
-/* --- Layout Container --- */
 .site-header {
-    padding: 40px 10px 20px 10px;
+  padding: 40px 10px 20px 10px;
+  z-index: 10;
 }
 
 .main-content {
-    flex-grow: 1;
-    padding: 20px;
+  flex-grow: 1;
+  padding: 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.main-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: inset 0 0 100px 30px rgba(0,0,0,0.5);
+    pointer-events: none;
+    z-index: 50;
 }
 
 .site-footer {
-    margin-top: auto;
-    padding: 20px;
-    font-size: 0.8em;
-    color: #ccc;
+  margin-top: auto;
+  padding: 20px;
+  font-size: 0.8em;
+  color: #ccc;
+  z-index: 10;
 }
 
-/* --- Header & Navigation --- */
 .title-main {
-    font-size: 2.5em;
-    color: #ffff00;
-    text-shadow: 3px 3px 0 #ff0000;
-    margin: 0 0 10px 0;
+  font-size: 2.5em;
+  color: #ffff00;
+  margin: 0 0 10px 0;
+  animation: neon-glow 1.5s ease-in-out infinite alternate;
 }
 
 .title-sub {
-    font-size: 1em;
-    color: #00ffff;
-    margin: 0 0 30px 0;
+  font-size: 1em;
+  color: #00ffff;
+  margin: 0 0 30px 0;
+  text-shadow: 1px 1px 0px #ff00ff;
 }
 
 nav a {
-    font-size: 1.2em;
-    margin: 0 15px;
+  font-size: 1.2em;
+  margin: 0 15px;
 }
-
-/* --- Login/Logout Bereich --- */
-.auth-links {
-    margin-top: 25px;
-    font-size: 0.8em;
-}
-
-.auth-links a,
-.auth-links button {
-    display: inline-block;
-    background: none;
-    border: none;
-    color: #00ffff;
-    padding: 5px 10px;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: inherit;
-    margin-left: 10px;
-    transition: color 0.2s ease-in-out;
-}
-
-.auth-links button:hover,
-.auth-links a:hover {
-    color: #ffff00;
-}
-/* --- NEU: Spiel-Auswahlseite & Animationen --- */
 
 .game-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsives Raster */
-    gap: 30px; /* Abstand zwischen den Karten */
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto; /* Zentriert das Raster */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .game-card {
-    background-color: rgba(30, 30, 30, 0.8);
-    border: 3px solid #00ffff; /* Cyan-Rand */
-    padding: 20px;
-    text-align: left;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    cursor: pointer;
+  position: relative;
+  background-color: rgba(30, 30, 30, 0.8);
+  border: 3px solid #00ffff;
+  padding: 20px;
+  text-align: left;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  cursor: pointer;
+  box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff;
+  overflow: hidden;
+}
+
+.game-card a.game-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
 }
 
 .game-card h3 {
-    margin-top: 0;
-    font-size: 1.2em;
-    color: #ffff00; /* Gelb */
+  margin-top: 0;
+  font-size: 1.2em;
+  color: #ffff00;
 }
 
 .game-card p {
-    color: #cccccc;
-    font-size: 0.8em;
-    line-height: 1.5;
+  color: #cccccc;
+  font-size: 0.8em;
+  line-height: 1.5;
 }
 
-/* Der magische Hover-Effekt */
+.game-card:hover h3, .game-card:hover p {
+  opacity: 0.2;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* --- Glitch-Effekt für Spielkarten --- */
+@keyframes glitch-anim-1 {
+  0% { clip-path: inset(3% 0 95% 0); }
+  20% { clip-path: inset(85% 0 4% 0); }
+  40% { clip-path: inset(54% 0 33% 0); }
+  60% { clip-path: inset(15% 0 77% 0); }
+  80% { clip-path: inset(91% 0 3% 0); }
+  100% { clip-path: inset(33% 0 59% 0); }
+}
+
+@keyframes glitch-anim-2 {
+  0% { transform: translate(-3px, 1px); }
+  20% { transform: translate(3px, -2px); }
+  40% { transform: translate(-1px, 2px); }
+  60% { transform: translate(2px, 1px); }
+  80% { transform: translate(-2px, -1px); }
+  100% { transform: translate(1px, 2px); }
+}
+
 .game-card:hover {
-    transform: translateY(-10px) rotate(2deg); /* Hebt die Karte an und dreht sie leicht */
-    box-shadow: 0 10px 20px rgba(255, 255, 0, 0.4); /* Gelbes Leuchten */
+  animation: glitch-anim-2 0.25s infinite;
 }
 
-/* Eine subtile Animation beim Laden der Seite */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.game-card {
-    animation: fadeIn 0.5s ease-out forwards;
-}
-/* --- NEU: Responsive Design für mobile Geräte --- */
-
-/* Diese Regeln gelten nur für Bildschirme, die 768px breit oder schmaler sind */
-@media (max-width: 768px) {
-
-    /* Schriftgrößen für den Header anpassen */
-    .title-main {
-        font-size: 1.8em; /* Haupttitel verkleinern */
-        text-shadow: 2px 2px 0 #ff0000; /* Schatten anpassen */
-    }
-
-    .title-sub {
-        font-size: 0.8em; /* Untertitel verkleinern */
-    }
-
-    /* Navigation anpassen */
-    nav a {
-        font-size: 1em; /* Links verkleinern */
-        margin: 0 8px;  /* Abstand reduzieren */
-    }
-    
-    .auth-links {
-        margin-top: 15px; /* Abstand oben verringern */
-    }
-
-    /* Das Spiel-Raster auf eine einzelne Spalte umstellen */
-    .game-grid {
-        /* Stellt sicher, dass auf kleinen Bildschirmen nur eine Karte pro Zeile ist */
-        grid-template-columns: 1fr; 
-    }
-
-    /* Den Hover-Effekt auf mobilen Geräten (wo es kein Hover gibt) deaktivieren */
-    .game-card:hover {
-        transform: none;
-        box-shadow: none;
-    }
-}
-/* --- NEU: Phase 3 - Design-Boosting --- */
-
-/* 1. Scanlines-Effekt für den Röhrenmonitor-Look */
-body::after {
-    content: " ";
-    display: block;
-    position: fixed; /* Bleibt beim Scrollen an Ort und Stelle */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    background-size: 100% 4px, 3px 100%;
-    z-index: 2; /* Legt sich über alles andere */
-    pointer-events: none; /* Stellt sicher, dass man noch klicken kann */
-    opacity: 0.2; /* Sehr subtil */
-}
-
-/* 2. Verbessertes Design für die Spielkarten */
-.game-card {
-    position: relative; /* Wichtig für die Positionierung des Play-Icons */
-    box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; /* Neon-Leuchten */
-    overflow: hidden; /* Versteckt das Play-Icon außerhalb der Karte */
-}
-
-.game-card::before {
-    content: '► PLAY'; /* Das Play-Icon mit Text */
-    font-family: 'Press Start 2P', cursive;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #ffff00;
-    font-size: 2em;
-    opacity: 0; /* Standardmäßig unsichtbar */
-    transition: opacity 0.3s ease-in-out;
-    text-shadow: 2px 2px 0px #ff0000;
+.game-card:hover::before,
+.game-card:hover::after {
+  content: '► PLAY';
+  font-family: 'Press Start 2P', cursive;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2em;
+  background: rgba(0, 0, 0, 0.8);
+  opacity: 1;
 }
 
 .game-card:hover::before {
-    opacity: 1; /* Wird beim Hovern sichtbar */
+  color: #00ffff; /* Glitch-Farbe 1 */
+  text-shadow: 2px 2px #ff00ff;
+  animation: glitch-anim-1 0.3s infinite;
+  z-index: 2;
 }
 
-.game-card:hover h3,
-.game-card:hover p {
-    opacity: 0.2; /* Lässt den Text in den Hintergrund treten */
+.game-card:hover::after {
+  color: #ff00ff; /* Glitch-Farbe 2 */
+  text-shadow: -2px -2px #00ffff;
+  animation: glitch-anim-1 0.3s infinite reverse;
+  z-index: 3;
+}
+
+/* --- Signatur --- */
+.signature-credit {
+  position: fixed;
+  bottom: 15px;
+  right: 20px;
+  color: rgba(204, 204, 204, 0.5); /* Halbtransparentes Grau */
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.7em;
+  z-index: 1000;
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.8);
+  pointer-events: none; /* Stellt sicher, dass man nicht versehentlich darauf klickt */
+}
+
+@media (max-width: 768px) {
+  .title-main {
+    font-size: 1.8em;
+    animation: none;
+    text-shadow: 3px 3px 0 #ff0000, 0 0 10px #ffff00;
+  }
+  .title-sub { font-size: 0.8em; }
+  nav a { font-size: 1em; margin: 0 8px; }
+  .game-grid { grid-template-columns: 1fr; }
+  .game-card:hover { transform: none; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
+}
+/* --- Live User Counter --- */
+#live-user-counter {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background-color: rgba(30, 30, 30, 0.8);
+    border: 2px solid #ff00ff;
+    box-shadow: 0 0 10px #ff00ff, inset 0 0 10px #ff00ff;
+    color: #ffff00;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9em;
+    z-index: 1001;
+    text-align: right;
+    min-width: 150px;
+    transition: all 0.3s ease-in-out;
+}
+
+#live-user-counter:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px #ffff00, inset 0 0 15px #ff00ff;
 }

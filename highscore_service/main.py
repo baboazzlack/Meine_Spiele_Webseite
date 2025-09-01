@@ -1,22 +1,15 @@
-# Vollständiger Inhalt für: highscore_service/main.py
-
-import sqlalchemy
+import sqlalchemy, json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import List
 import databases
-import json
-
-# --- NEU: Import für die CORS-Middleware ---
 from fastapi.middleware.cors import CORSMiddleware
 
-# --- Datenbank-Setup (unverändert) ---
 DATABASE_URL = "sqlite:///./highscores.db"
 database = databases.Database(DATABASE_URL)
 metadata = sqlalchemy.MetaData()
 highscores = sqlalchemy.Table(
-    "highscores",
-    metadata,
+    "highscores", metadata,
     sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True),
     sqlalchemy.Column("player_name", sqlalchemy.String),
     sqlalchemy.Column("game", sqlalchemy.String),
@@ -25,7 +18,6 @@ highscores = sqlalchemy.Table(
 engine = sqlalchemy.create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 metadata.create_all(engine)
 
-# --- Pydantic Datenmodelle (unverändert) ---
 class HighscoreIn(BaseModel):
     player_name: str
     game: str
@@ -37,39 +29,38 @@ class Highscore(BaseModel):
     game: str
     score: int
 
-# --- WebSocket Connection Manager (unverändert) ---
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-    def disconnect(self, websocket: WebSocket):
+        # Sende die neue User-Anzahl an alle
+        await self.broadcast_user_count()
+
+    async def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
+        # Sende die neue User-Anzahl an die verbleibenden User
+        await self.broadcast_user_count()
+
     async def broadcast(self, message: str):
         for connection in self.active_connections:
             await connection.send_text(message)
-manager = ConnectionManager()
 
-# --- FastAPI Anwendung ---
+    async def broadcast_user_count(self):
+        # Erstelle eine Nachricht vom Typ "user_count"
+        message = json.dumps({"type": "user_count", "count": len(self.active_connections)})
+        await self.broadcast(message)
+
+manager = ConnectionManager()
 app = FastAPI()
 
-# --- NEU: Die "Gästeliste" für unseren Türsteher (CORS-Middleware) ---
-# Definiert, welche Adressen (origins) mit unserem Service reden dürfen.
-origins = [
-    "http://localhost:8000",  # Erlaubt Anfragen von unserer Django-Entwicklungs-Seite
-    "http://127.0.0.1:8000", # Eine weitere gängige Adresse für localhost
-    # Später können wir hier auch deine Live-URL eintragen, z.B. "https://gfn-retro-hub.onrender.com"
-]
-
+origins = ["http://localhost:8000", "http://127.0.0.1:8000"]
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"], # Erlaubt alle Methoden (GET, POST, etc.)
-    allow_headers=["*"], # Erlaubt alle Header
+    CORSMiddleware, allow_origins=origins, allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
 )
-# --- ENDE ---
 
 @app.on_event("startup")
 async def startup():
@@ -79,7 +70,6 @@ async def startup():
 async def shutdown():
     await database.disconnect()
 
-# --- API Endpunkte (unverändert) ---
 @app.get("/highscores/", response_model=List[Highscore])
 async def read_highscores():
     query = highscores.select().order_by(sqlalchemy.desc(highscores.c.score))
@@ -90,24 +80,26 @@ async def create_highscore(score: HighscoreIn):
     query = highscores.insert().values(player_name=score.player_name, game=score.game, score=score.score)
     last_record_id = await database.execute(query)
     new_highscore_data = {**score.dict(), "id": last_record_id}
-    await manager.broadcast(json.dumps(new_highscore_data))
+    # Erstelle eine Nachricht vom Typ "highscore"
+    highscore_message = json.dumps({"type": "highscore", "data": new_highscore_data})
+    await manager.broadcast(highscore_message)
     return new_highscore_data
+
+@app.delete("/highscores/clear/")
+async def clear_all_highscores():
+    query = highscores.delete()
+    await database.execute(query)
+    return {"message": "Alle Highscores wurden erfolgreich gelöscht."}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
+            # Hält die Verbindung offen
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-
-@app.delete("/highscores/clear/")
-async def clear_all_highscores():
-    """Löscht alle Einträge aus der Highscore-Tabelle."""
-    query = highscores.delete()
-    await database.execute(query)
-    return {"message": "Alle Highscores wurden erfolgreich gelöscht."}
+        await manager.disconnect(websocket)
 
 @app.get("/")
 async def read_root():

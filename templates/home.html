@@ -1,85 +1,21 @@
-﻿{% extends 'base.html' %}
+﻿{% extends "base.html" %}
+{% load static %}
 
-{% block title %}Willkommen - GFN Retro Hub{% endblock %}
+{% block title %}Willkommen im GFN Retro Hub{% endblock %}
 
 {% block content %}
-    <h2>Willkommen im GFN Retro Hub!</h2>
-    <p>Hier entsteht eine fantastische Sammlung von Oldschool-Spielen.</p>
-    <p>Die Planung ist abgeschlossen, der Bau hat begonnen!</p>
+<main class="main-content">
+    <h2>Willkommen, Zeitreisender!</h2>
+    <p>Dies ist der GFN Retro Hub, deine persönliche Zeitmaschine in die goldene Ära der Videospiele. Besuche die <a href="{% url 'games:game_list' %}">Spiele-Sektion</a>, um dein nächstes Abenteuer zu beginnen!</p>
 
-    <div class="live-feed-container">
-        <h3>Live Highscores</h3>
-        <ul id="highscore-feed">
-            <li>Warte auf neue Highscores...</li>
+    <div id="highscore-feed-container" style="margin-top: 50px; border: 3px solid #00ffff; padding: 20px; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; background-color: rgba(30,30,30,0.8);">
+        <h3>LIVE HIGHSCORE FEED</h3>
+        <ul id="highscore-live-list" style="list-style: none; padding: 0; min-height: 150px;">
+            <li class="placeholder">Warte auf Heldentaten...</li>
         </ul>
     </div>
+</main>
+{% endblock %}
 
-    <style>
-        .live-feed-container {
-            max-width: 600px;
-            margin: 40px auto;
-            border: 3px solid #ffff00;
-            padding: 20px;
-            box-shadow: 0 0 10px #ffff00, inset 0 0 10px #ffff00;
-        }
-        #highscore-feed {
-            list-style: none;
-            padding: 0;
-            text-align: left;
-            font-size: 0.8em;
-            height: 150px;
-            overflow-y: auto; /* Fügt eine Scrollbar hinzu, wenn die Liste zu lang wird */
-        }
-        #highscore-feed li {
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-bottom: 1px solid #ffff00;
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        #highscore-feed li:first-child {
-            color: #ffff00; /* Hebt den neuesten Score hervor */
-        }
-    </style>
-
-    <script>
-        // Startet die WebSocket-Verbindung, sobald die Seite geladen ist
-        document.addEventListener('DOMContentLoaded', () => {
-            const feedList = document.getElementById('highscore-feed');
-            const initialMessage = feedList.querySelector('li');
-
-            // Stellt die Verbindung zum WebSocket unseres FastAPI-Services her
-            const ws = new WebSocket(`ws://${window.location.host.split(':')[0]}:8001/ws`);
-
-            ws.onopen = (event) => {
-                console.log("WebSocket-Verbindung erfolgreich hergestellt.");
-            };
-
-            // Diese Funktion wird jedes Mal aufgerufen, wenn eine neue Nachricht vom Server kommt
-            ws.onmessage = (event) => {
-                // Entfernt die "Warte"-Nachricht, falls sie noch da ist
-                if (document.body.contains(initialMessage)) {
-                    initialMessage.remove();
-                }
-
-                const scoreData = JSON.parse(event.data);
-                const newItem = document.createElement('li');
-                newItem.textContent = `Spieler '${scoreData.player_name}' hat ${scoreData.score} Punkte in ${scoreData.game} erreicht!`;
-                
-                // Fügt den neuen Eintrag ganz oben in der Liste ein
-                feedList.prepend(newItem);
-            };
-
-            ws.onclose = (event) => {
-                console.log("WebSocket-Verbindung geschlossen.");
-                if (document.body.contains(initialMessage)) {
-                    initialMessage.textContent = 'Live-Feed getrennt.';
-                    initialMessage.style.color = '#ff4d4d';
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error("WebSocket-Fehler:", error);
-            };
-        });
-    </script>
+{% block extra_js %}
 {% endblock %}

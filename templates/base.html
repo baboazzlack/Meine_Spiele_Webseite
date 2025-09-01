@@ -5,29 +5,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GFN Retro Hub{% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
+    <div id="live-user-counter">🔴 LIVE: --</div>
 
     <header class="site-header">
-        <h1 class="title-main">GFN RETRO HUB</h1>
-        <p class="title-sub">DEINE REISE IN DIE GOLDENE ÄRA DES GAMINGS</p>
-        
+        <h1 class="title-main">GFN Retro Hub</h1>
+        <h2 class="title-sub">Deine Zeitmaschine in die goldene Ära der Spiele</h2>
         <nav>
             <a href="{% url 'home' %}">Home</a>
             <a href="{% url 'games:game_list' %}">Spiele</a>
             <a href="{% url 'games:highscores' %}">Highscores</a>
-            </nav>
+        </nav>
     </header>
 
-    <main class="main-content">
-        {% block content %}
-        {% endblock %}
-    </main>
+    {% block content %}
+    {% endblock %}
 
     <footer class="site-footer">
-        Copyright 2024 by Onur Acu
+        <p>&copy; 2025 GFN Retro Hub - Eine Reise in die Vergangenheit.</p>
     </footer>
 
+    <div class="signature-credit">by Onur Acu</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userCounter = document.getElementById('live-user-counter');
+            const highscoreList = document.getElementById('highscore-live-list'); // Existiert nur auf der home.html
+
+            const socket = new WebSocket('ws://' + window.location.host.split(':')[0] + ':8001/ws');
+
+            socket.onopen = function(e) {
+                console.log("Globale WebSocket-Verbindung hergestellt.");
+            };
+
+            socket.onmessage = function(event) {
+                const messageData = JSON.parse(event.data);
+
+                // Fall 1: Nachricht ist ein User-Count-Update
+                if (messageData.type === 'user_count') {
+                    userCounter.textContent = `🔴 LIVE: ${messageData.count} User`;
+                }
+
+                // Fall 2: Nachricht ist ein Highscore-Update
+                if (messageData.type === 'highscore' && highscoreList) {
+                    const data = messageData.data;
+                    const placeholder = highscoreList.querySelector('li.placeholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+
+                    const newEntry = document.createElement('li');
+                    newEntry.textContent = `> ${data.player_name} in ${data.game}: ${data.score}`;
+                    
+                    newEntry.style.color = '#ffff00';
+                    newEntry.style.textShadow = '2px 2px #ff00ff';
+                    newEntry.style.opacity = 0;
+                    newEntry.style.transition = 'opacity 0.5s ease-in-out, transform 0.5s ease-in-out';
+                    newEntry.style.transform = 'translateX(-20px)';
+                    
+                    highscoreList.prepend(newEntry);
+
+                    setTimeout(() => { 
+                        newEntry.style.opacity = 1;
+                        newEntry.style.transform = 'translateX(0)';
+                    }, 50);
+                    
+                    while (highscoreList.children.length > 6) {
+                        highscoreList.removeChild(highscoreList.lastChild);
+                    }
+                }
+            };
+
+            socket.onclose = function(event) {
+                console.error('WebSocket-Verbindung geschlossen:', event);
+                userCounter.textContent = 'OFFLINE';
+                userCounter.style.color = '#ff0000';
+                userCounter.style.borderColor = '#ff0000';
+            };
+        });
+    </script>
+    
+    {% block extra_js %}
+    {% endblock %}
 </body>
 </html>

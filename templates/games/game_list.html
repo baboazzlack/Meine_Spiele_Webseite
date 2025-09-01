@@ -1,29 +1,112 @@
-﻿{% extends 'base.html' %}
+﻿{% extends "base.html" %}
+{% load static %}
 
-{% block title %}Spiele-Auswahl - GFN Retro Hub{% endblock %}
+{% block title %}Spiele - GFN Retro Hub{% endblock %}
 
 {% block content %}
-    <h2>Alte Retro Games</h2>
-    <div class="game-grid">
-        {% for game in alte_spiele %}
-            <a href="{% url game.url_name %}" class="game-card">
-                <h3>{{ game.name }}</h3>
-                <p>{{ game.description }}</p>
-            </a>
-        {% empty %}
-            <p>Keine alten Spiele gefunden.</p>
-        {% endfor %}
-    </div>
+<main class="main-content">
+    <h2>Wähle dein Abenteuer!</h2>
+    <p>Jede Karte ist ein Portal in eine andere Dimension des Spaßes. Klicke, um zu starten.</p>
 
-    <h2>Neue Retro Games</h2>
+    <audio id="select-sound" src="{% static 'sounds/select_sound.wav' %}" preload="auto"></audio>
+
     <div class="game-grid">
-        {% for game in neue_spiele %}
-            <a href="{% url game.url_name %}" class="game-card">
-                <h3>{{ game.name }}</h3>
-                <p>{{ game.description }}</p>
+        <div class="game-card">
+            <a href="{% url 'games:snake' %}" class="game-link">
+                <h3>Snake</h3>
+                <p>Der unsterbliche Klassiker. Werde länger, aber beiß dir nicht in den eigenen Schwanz.</p>
             </a>
-        {% empty %}
-            <p>Keine neuen Spiele gefunden.</p>
-        {% endfor %}
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:space_invaders' %}" class="game-link">
+                <h3>Space Invaders</h3>
+                <p>Verteidige die Erde gegen die unerbittliche Alien-Invasion von oben!</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:tic_tac_toe' %}" class="game-link">
+                <h3>Tic-Tac-Toe</h3>
+                <p>Drei gewinnt! Kannst du die künstliche Intelligenz in diesem zeitlosen Duell schlagen?</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:rock_paper_scissors' %}" class="game-link">
+                <h3>Schere-Stein-Papier</h3>
+                <p>Ein Duell des Glücks und der Psychologie. Wähle weise deine Waffe.</p>
+            </a>
+        </div>
+        
+        <div class="game-card">
+            <a href="{% url 'games:guess_the_number' %}" class="game-link">
+                <h3>Zahlen Raten</h3>
+                <p>Der Computer hat eine Zahl, du hast deinen Verstand. Wer gewinnt das Logik-Duell?</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:hangman' %}" class="game-link">
+                <h3>Galgenmännchen</h3>
+                <p>Errate das Wort, bevor die Zeit abläuft und das Strichmännchen komplett ist.</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:pong' %}" class="game-link">
+                <h3>Pong</h3>
+                <p>Der Urvater aller Videospiele. Bewege deinen Schläger und halte den Ball im Spiel.</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:tetris' %}" class="game-link">
+                <h3>Tetris</h3>
+                <p>Die Blöcke fallen! Ordne sie in Reihen an, bevor der Stapel die Decke erreicht.</p>
+            </a>
+        </div>
+
+        <div class="game-card">
+            <a href="{% url 'games:pacman' %}" class="game-link">
+                <h3>Pac-Man</h3>
+                <p>Friss die Punkte, jage die Geister und navigiere durch das Labyrinth.</p>
+            </a>
+        </div>
     </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const gameCards = document.querySelectorAll('.game-card');
+        const selectSound = document.getElementById('select-sound');
+
+        // Wichtige Prüfung, ob das Sound-Element überhaupt existiert
+        if (!selectSound) {
+            console.error("FEHLER: Das Audio-Element mit der ID 'select-sound' wurde nicht gefunden.");
+            return;
+        }
+
+        gameCards.forEach(card => {
+            card.addEventListener('click', (event) => {
+                // Verhindert, dass der Browser sofort zur neuen Seite springt
+                event.preventDefault(); 
+                
+                // Setzt den Sound auf den Anfang zurück und spielt ihn ab
+                selectSound.currentTime = 0;
+                selectSound.play().catch(e => console.error("Sound konnte nicht abgespielt werden:", e));
+
+                // Holt die Ziel-URL aus dem Link in der Karte
+                const targetUrl = card.querySelector('a.game-link').href;
+                
+                // Wartet einen kurzen Moment, damit der Sound hörbar ist, und leitet dann weiter
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 250); // 250 Millisekunden Verzögerung
+            });
+        });
+    });
+</script>
 {% endblock %}
