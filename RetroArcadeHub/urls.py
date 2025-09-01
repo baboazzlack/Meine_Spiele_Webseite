@@ -21,13 +21,15 @@ urlpatterns = [
     path('games/', include('games.urls')),
 
     # Frontend-Seiten für Login/Registrierung
-    path('register/', game_views.register_page, name='register_page'),
-    path('login/', game_views.login_page, name='login_page'),
-
-    # API-Pfade
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/', include('api.urls')),
+    
+    # NEU: URL für das Admin Dashboard
+path('dashboard/', game_views.dashboard, name='dashboard'),
+# NEU: URL zum Löschen eines Benutzers
+path('register/', game_views.register_page, name='register_page'),
+path('dashboard/user/<int:user_id>/delete/', game_views.delete_user, name='delete_user'),
+    
+    # API-Pfade (bleiben unverändert)
+    # ...
 ]
 
 # --- NEU: Der entscheidende Befehl für den Entwicklungs-Server ---

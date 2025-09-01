@@ -5,6 +5,19 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from collections import Counter
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.models import User
+
+@staff_member_required
+def dashboard(request):
+    """Zeigt die Hauptseite des Admin-Dashboards."""
+    # NEU: Hole alle Benutzer aus der Datenbank, außer dem aktuell eingeloggten Admin
+    all_users = User.objects.exclude(username=request.user.username)
+    
+    context = {
+        'users': all_users,
+    }
+    return render(request, 'dashboard.html', context)
 
 # ==============================================================================
 # ZENTRALE HILFSFUNKTION zum Speichern von Highscores
@@ -256,8 +269,28 @@ def pacman(request): return render(request, 'games/pacman.html')
 # Hinzugefügte Views für die statischen Login/Register-Seiten
 # ==============================================================================
 
-def register_page(request):
-    return render(request, 'register.html')
 
-def login_page(request):
-    return render(request, 'login.html')
+@staff_member_required
+def dashboard(request):
+    """Zeigt die Hauptseite des Admin-Dashboards."""
+    # Vorerst übergeben wir keine Daten, das kommt im nächsten Schritt.
+    context = {}
+    return render(request, 'dashboard.html', context)
+# games/views.py --- GANZ AM ENDE HINZUFÜGEN
+
+@staff_member_required
+def delete_user(request, user_id):
+    """Löscht einen Benutzer anhand seiner ID."""
+    try:
+        # Finde den zu löschenden Benutzer
+        user_to_delete = User.objects.get(id=user_id)
+        # Lösche den Benutzer
+        user_to_delete.delete()
+    except User.DoesNotExist:
+        # Falls der Benutzer aus irgendeinem Grund nicht existiert, passiert nichts
+        pass
+    # Leite nach der Aktion zurück zum Dashboard
+    return redirect('dashboard')
+def register_page(request):
+    """Zeigt die HTML-Seite für die Benutzer-Registrierung an."""
+    return render(request, 'register.html')

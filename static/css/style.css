@@ -191,3 +191,50 @@ nav a {
         box-shadow: none;
     }
 }
+/* --- NEU: Phase 3 - Design-Boosting --- */
+
+/* 1. Scanlines-Effekt für den Röhrenmonitor-Look */
+body::after {
+    content: " ";
+    display: block;
+    position: fixed; /* Bleibt beim Scrollen an Ort und Stelle */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 3px 100%;
+    z-index: 2; /* Legt sich über alles andere */
+    pointer-events: none; /* Stellt sicher, dass man noch klicken kann */
+    opacity: 0.2; /* Sehr subtil */
+}
+
+/* 2. Verbessertes Design für die Spielkarten */
+.game-card {
+    position: relative; /* Wichtig für die Positionierung des Play-Icons */
+    box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; /* Neon-Leuchten */
+    overflow: hidden; /* Versteckt das Play-Icon außerhalb der Karte */
+}
+
+.game-card::before {
+    content: '► PLAY'; /* Das Play-Icon mit Text */
+    font-family: 'Press Start 2P', cursive;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffff00;
+    font-size: 2em;
+    opacity: 0; /* Standardmäßig unsichtbar */
+    transition: opacity 0.3s ease-in-out;
+    text-shadow: 2px 2px 0px #ff0000;
+}
+
+.game-card:hover::before {
+    opacity: 1; /* Wird beim Hovern sichtbar */
+}
+
+.game-card:hover h3,
+.game-card:hover p {
+    opacity: 0.2; /* Lässt den Text in den Hintergrund treten */
+}
