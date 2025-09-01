@@ -101,3 +101,93 @@ nav a {
 .auth-links a:hover {
     color: #ffff00;
 }
+/* --- NEU: Spiel-Auswahlseite & Animationen --- */
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsives Raster */
+    gap: 30px; /* Abstand zwischen den Karten */
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto; /* Zentriert das Raster */
+}
+
+.game-card {
+    background-color: rgba(30, 30, 30, 0.8);
+    border: 3px solid #00ffff; /* Cyan-Rand */
+    padding: 20px;
+    text-align: left;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.game-card h3 {
+    margin-top: 0;
+    font-size: 1.2em;
+    color: #ffff00; /* Gelb */
+}
+
+.game-card p {
+    color: #cccccc;
+    font-size: 0.8em;
+    line-height: 1.5;
+}
+
+/* Der magische Hover-Effekt */
+.game-card:hover {
+    transform: translateY(-10px) rotate(2deg); /* Hebt die Karte an und dreht sie leicht */
+    box-shadow: 0 10px 20px rgba(255, 255, 0, 0.4); /* Gelbes Leuchten */
+}
+
+/* Eine subtile Animation beim Laden der Seite */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.game-card {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+/* --- NEU: Responsive Design für mobile Geräte --- */
+
+/* Diese Regeln gelten nur für Bildschirme, die 768px breit oder schmaler sind */
+@media (max-width: 768px) {
+
+    /* Schriftgrößen für den Header anpassen */
+    .title-main {
+        font-size: 1.8em; /* Haupttitel verkleinern */
+        text-shadow: 2px 2px 0 #ff0000; /* Schatten anpassen */
+    }
+
+    .title-sub {
+        font-size: 0.8em; /* Untertitel verkleinern */
+    }
+
+    /* Navigation anpassen */
+    nav a {
+        font-size: 1em; /* Links verkleinern */
+        margin: 0 8px;  /* Abstand reduzieren */
+    }
+    
+    .auth-links {
+        margin-top: 15px; /* Abstand oben verringern */
+    }
+
+    /* Das Spiel-Raster auf eine einzelne Spalte umstellen */
+    .game-grid {
+        /* Stellt sicher, dass auf kleinen Bildschirmen nur eine Karte pro Zeile ist */
+        grid-template-columns: 1fr; 
+    }
+
+    /* Den Hover-Effekt auf mobilen Geräten (wo es kein Hover gibt) deaktivieren */
+    .game-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
