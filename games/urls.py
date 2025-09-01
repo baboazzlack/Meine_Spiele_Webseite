@@ -14,5 +14,6 @@ urlpatterns = [
     path('tetris/', views.tetris, name='tetris'),
     path('space-invaders/', views.space_invaders, name='space_invaders'),
     path('pacman/', views.pacman, name='pacman'),
+    path('super-breakout/', views.super_breakout, name='super_breakout'),
     path('save-score/', views.save_score, name='save_score'),
 ]

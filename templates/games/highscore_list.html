@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Highscores - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <h2>Halle der Legenden</h2>
+    <p>Hier sind die besten Punktzahlen, die im gesamten GFN Retro Hub erzielt wurden.</p>
+
+    {% if messages %}
+        <div class="messages" style="margin: 20px 0;">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}" style="padding: 10px; border: 2px solid {% if message.tags == 'success' %}#00ff00{% else %}#ff0000{% endif %}; color: {% if message.tags == 'success' %}#00ff00{% else %}#ff0000{% endif %};">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="highscore-table-container" style="margin: 0 auto; max-width: 800px; text-align: left;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #00ffff;">
+                    <th style="padding: 10px; text-align: center;">Rang</th>
+                    <th style="padding: 10px;">Spieler</th>
+                    <th style="padding: 10px;">Spiel</th>
+                    <th style="padding: 10px; text-align: right;">Punkte</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for score in highscores %}
+                <tr style="border-bottom: 1px solid rgba(0, 255, 255, 0.3);">
+                    <td style="padding: 10px; text-align: center;">{{ forloop.counter }}</td>
+                    <td style="padding: 10px;">{{ score.player_name }}</td>
+                    <td style="padding: 10px;">{{ score.game }}</td>
+                    <td style="padding: 10px; text-align: right; color: #ffff00;">{{ score.score }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 20px; text-align: center; font-style: italic; color: #ccc;">
+                        Noch keine Highscores vorhanden. Sei der Erste!
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="admin-reset-section" style="margin-top: 50px; border-top: 1px solid #ccc; padding-top: 20px;">
+        <details>
+            <summary style="cursor: pointer; color: #ccc; font-size: 0.8em;">Admin-Optionen</summary>
+            <div style="margin-top: 20px; background-color: rgba(50,0,0,0.5); padding: 20px; border: 1px solid #ff0000;">
+                <h4 style="color: #ff0000;">Gefahrenzone: Highscores zurücksetzen</h4>
+                <form action="{% url 'games:highscores' %}" method="post">
+                    {% csrf_token %}
+                    <label for="password" style="display: block; margin-bottom: 10px;">Admin-Passwort:</label>
+                    <input type="password" id="password" name="password" required style="background-color: #333; border: 1px solid #fff; color: #fff; padding: 8px; font-family: 'Press Start 2P', cursive;">
+                    <button type="submit" style="background-color: #ff0000; color: #fff; border: none; padding: 10px 15px; font-family: 'Press Start 2P', cursive; cursor: pointer;">RESET</button>
+                </form>
+            </div>
+        </details>
+    </div>
+
+</main>
+{% endblock %}
