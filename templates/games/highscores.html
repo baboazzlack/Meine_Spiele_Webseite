@@ -1,1 +1,52 @@
-﻿{% extends 'base.html' %}{% block content %}<h2>Highscore-Tafel</h2><style>.highscore-table{width:100%;margin:20px auto;border-collapse:collapse;font-size:.8em}.highscore-table td,.highscore-table th{padding:10px;border:2px solid #32c8e6}.highscore-table th{background-color:#0f3460;color:#e94560}</style><table class="highscore-table"><thead><tr><th>Spieler</th><th>Spiel</th><th>Schwierigkeit</th><th>Punkte</th><th>Datum</th></tr></thead><tbody>{% for score in scores %}<tr><td>{{ score.player_name }}</td><td>{{ score.game }}</td><td>{{ score.difficulty }}</td><td>{{ score.score }}</td><td>{{ score.date_achieved|date:"d.m.Y H:i" }}</td></tr>{% empty %}<tr><td colspan="5">Noch keine Highscores vorhanden.</td></tr>{% endfor %}</tbody></table>{% endblock %}
+﻿{% extends 'base.html' %}
+
+{% block title %}Highscores - GFN Retro Hub{% endblock %}
+
+{% block content %}
+    <h2>Highscore-Liste</h2>
+
+    {% if message %}
+        <p style="color: #ff4d4d;">{{ message }}</p>
+    {% else %}
+        <style>
+            .highscore-table {
+                width: 80%;
+                margin: 20px auto;
+                border-collapse: collapse;
+                border: 3px solid #00ffff;
+            }
+            .highscore-table th, .highscore-table td {
+                border: 1px solid #00ffff;
+                padding: 10px 15px;
+                text-align: left;
+            }
+            .highscore-table th {
+                background-color: #333;
+                color: #ffff00;
+            }
+        </style>
+
+        <table class="highscore-table">
+            <thead>
+                <tr>
+                    <th>Spieler</th>
+                    <th>Spiel</th>
+                    <th>Punkte</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for score in scores %}
+                    <tr>
+                        <td>{{ score.player_name }}</td> {# <-- HIER WAR DER FEHLER: .player wurde zu .player_name #}
+                        <td>{{ score.game }}</td>
+                        <td>{{ score.score }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3">Noch keine Highscores vorhanden. Spiel eine Runde!</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}

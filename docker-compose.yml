@@ -1,9 +1,20 @@
-# Vollständiger Inhalt für: docker-compose.yml
-
 services:
+  # Unser bestehender Django-Webserver
   web:
     build: .
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+    # Stellt sicher, dass die API startet, bevor die Webseite startet
+    depends_on:
+      - highscore_api
+
+  # NEU: Unser neuer FastAPI-Microservice
+  highscore_api:
+    # Sagt Docker, wo es den Bauplan (Dockerfile) findet
+    build: ./highscore_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./highscore_service:/code
