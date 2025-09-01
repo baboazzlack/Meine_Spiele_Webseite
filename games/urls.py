@@ -12,7 +12,7 @@ urlpatterns = [
     path('snake/', views.snake, name='snake'),
     path('pong/', views.pong, name='pong'),
     path('tetris/', views.tetris, name='tetris'),
-    # NEU: Die Adresse für Pac-Man
+    path('space-invaders/', views.space_invaders, name='space_invaders'),
     path('pacman/', views.pacman, name='pacman'),
     path('save-score/', views.save_score, name='save_score'),
 ]

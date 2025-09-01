@@ -17,20 +17,7 @@
             <a href="{% url 'home' %}">Home</a>
             <a href="{% url 'games:game_list' %}">Spiele</a>
             <a href="{% url 'games:highscores' %}">Highscores</a>
-            
-            {% if user.is_authenticated and user.is_staff %}
-                <a href="{% url 'dashboard' %}">Dashboard</a>
-            {% endif %}
-            
-<div class="auth-links">
-    {% if user.is_authenticated %}
-        <span style="color: #fff;">Willkommen, {{ user.username }}!</span>
-        <a href="{% url 'admin:logout' %}?next=/">Logout</a>
-    {% else %}
-        <a href="{% url 'admin:login' %}?next={{ request.path }}">Login</a>
-        <a href="{% url 'register_page' %}">Registrieren</a> {% endif %}
-</div>
-        </nav>
+            </nav>
     </header>
 
     <main class="main-content">
@@ -42,5 +29,5 @@
         Copyright 2024 by Onur Acu
     </footer>
 
-    </body>
+</body>
 </html>

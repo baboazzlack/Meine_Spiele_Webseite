@@ -1,4 +1,2 @@
 ﻿Django~=4.2.0
-djangorestframework
-djangorestframework-simplejwt
 requests

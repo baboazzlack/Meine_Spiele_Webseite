@@ -1,218 +1,193 @@
 {% extends 'base.html' %}
-{% block title %}Space Invaders{% endblock %}
+{% block title %}Space Invaders - GFN Retro Hub{% endblock %}
+
 {% block content %}
-    <h2>Space Invaders</h2>
-
-    <style>
-        #game-container { position: relative; width: 550px; height: 400px; margin: 0 auto; }
-        #game-board { border: 3px solid #e0e0e0; background-color: #000; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; }
-        .difficulty-button { display: inline-block; padding: 15px 25px; margin: 10px; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; }
-        .easy { background-color: #28a745; } .medium { background-color: #ffc107; color: #1a1a2e;} .hard { background-color: #dc3545; }
-    </style>
-
-    <div id="game-container">
-        <canvas id="game-board" width="550" height="400"></canvas>
-        <div id="overlay">
-            <h3>Space Invaders</h3>
-            <p>Wähle eine Schwierigkeitsstufe:</p>
-            <div>
-                <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
-                <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
-                <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
-            </div>
-            <p style="font-size: 0.8em; margin-top: 40px;">Links/Rechts: Bewegen<br>Leertaste: Schießen</p>
-        </div>
-    </div>
-    <div style="width: 550px; margin: 10px auto; display: flex; justify-content: space-between;">
-        <h3 id="score-display">Score: 0</h3>
-        <h3 id="lives-display">Leben: 3</h3>
-    </div>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
     
-    <script>
-        // Spiel-Setup
-        const canvas = document.getElementById('game-board');
-        const context = canvas.getContext('2d');
-        const overlay = document.getElementById('overlay');
-        const scoreDisplay = document.getElementById('score-display');
-        const livesDisplay = document.getElementById('lives-display');
+    <div id="start-screen" class="screen">
+        <h2>Space Invaders</h2>
+        <p>Wähle eine Schwierigkeitsstufe:</p>
+        <button onclick="startGame('easy')">Leicht</button>
+        <button onclick="startGame('medium')">Mittel</button>
+        <button onclick="startGame('hard')">Schwer</button>
+    </div>
 
-        // Spiel-Objekte
-        const player = { x: canvas.width / 2 - 15, y: canvas.height - 30, width: 30, height: 15, speed: 4, lives: 3 };
-        const playerLaser = { x: 0, y: 0, width: 3, height: 10, speed: 7, active: false };
-        const invaders = [];
-        const invaderGrid = { x: 50, y: 30, width: 450, speed: 0.5, direction: 1, drop: 10 };
-        const invaderLasers = [];
-        
-        let score = 0;
-        let isGameOver = true;
-        let keys = {};
-        let gameLoopId;
-        let currentDifficulty;
-        let invaderShootChance;
+    <div id="game-over-screen" class="screen" style="display: none;">
+        <h2>Game Over</h2>
+        <p>Dein Score: <span id="final-score">0</span></p>
+        <form id="highscore-form">
+            <input type="text" id="player-name" placeholder="Dein Name" maxlength="15" required>
+            <button type="submit">Highscore speichern</button>
+        </form>
+        <button onclick="restart()">Erneut spielen</button>
+    </div>
+</div>
 
-        function createInvaders() {
-            invaders.length = 0;
-            const rows = 5;
-            const cols = 10;
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    invaders.push({
-                        x: invaderGrid.x + c * 40,
-                        y: invaderGrid.y + r * 30,
-                        width: 20,
-                        height: 15,
-                        alive: true
-                    });
+<style>
+    #game-container { position: relative; width: 800px; height: 600px; margin: 20px auto; border: 3px solid #00ffff; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
+    #gameCanvas { background-color: #000; display: block; }
+    .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(0, 0, 0, 0.8); color: #ffff00; }
+    .screen button, .screen input { font-family: 'Press Start 2P', cursive; font-size: 1em; padding: 10px 20px; margin-top: 20px; background-color: transparent; border: 2px solid #ffff00; color: #ffff00; cursor: pointer; }
+    .screen input { text-align: center; }
+    .screen button:hover { background-color: #ffff00; color: #000; }
+</style>
+
+<script>
+    // --- GAME SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const finalScoreEl = document.getElementById('final-score');
+    const highscoreForm = document.getElementById('highscore-form');
+
+    let game;
+    let animationFrameId;
+
+    // --- GAME CLASSES ---
+    class Player {
+        constructor(game) { this.game = game; this.width = 50; this.height = 30; this.x = (this.game.width / 2) - (this.width / 2); this.y = this.game.height - this.height - 20; this.speed = 0; this.maxSpeed = 7; }
+        update() { this.x += this.speed; if (this.x < 0) this.x = 0; if (this.x > this.game.width - this.width) this.x = this.game.width - this.width; }
+        draw(context) { context.fillStyle = '#00ffff'; context.fillRect(this.x, this.y, this.width, this.height); }
+        shoot() { if (this.game.projectiles.length < this.game.maxProjectiles) { this.game.projectiles.push(new Projectile(this.game, this.x + this.width / 2 - 2, this.y)); } }
+    }
+
+    class Projectile {
+        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 4; this.height = 15; this.speed = 10; this.markedForDeletion = false; }
+        update() { this.y -= this.speed; if (this.y < 0) this.markedForDeletion = true; }
+        draw(context) { context.fillStyle = '#ffff00'; context.fillRect(this.x, this.y, this.width, this.height); }
+    }
+
+    class InvaderProjectile {
+        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 5; this.height = 10; this.speed = 5; this.markedForDeletion = false; }
+        update() { this.y += this.speed; if (this.y > this.game.height) this.markedForDeletion = true; }
+        draw(context) { context.fillStyle = '#ff4d4d'; context.fillRect(this.x, this.y, this.width, this.height); }
+    }
+
+    class Invader {
+        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 40; this.height = 30; this.markedForDeletion = false; }
+        draw(context) { context.fillStyle = '#00ff00'; context.fillRect(this.game.invaderGrid.x + this.x, this.game.invaderGrid.y + this.y, this.width, this.height); }
+    }
+    
+    class InvaderGrid {
+        constructor(game){ this.game = game; this.x = 0; this.y = 0; this.speedX = this.game.invaderSpeed; this.speedY = 0; this.invaders = []; this.width = 10 * 60 - 20; this.createGrid(); }
+        createGrid(){ for (let row = 0; row < 5; row++) { for (let col = 0; col < 10; col++) { this.invaders.push(new Invader(this.game, col * 60, row * 50)); } } }
+        update(){
+            this.x += this.speedX; this.y += this.speedY; this.speedY = 0;
+            if (this.x < 0 || this.x > this.game.width - this.width) { this.speedX *= -1; this.speedY = 30; }
+            if (Math.random() < this.game.invaderShootChance && this.invaders.length > 0) {
+                const randomInvader = this.invaders[Math.floor(Math.random() * this.invaders.length)];
+                const projectileX = this.x + randomInvader.x + randomInvader.width / 2;
+                const projectileY = this.y + randomInvader.y + randomInvader.height;
+                this.game.invaderProjectiles.push(new InvaderProjectile(this.game, projectileX, projectileY));
+            }
+        }
+    }
+
+    class UI {
+        constructor(game) { this.game = game; }
+        draw(context) { context.fillStyle = '#ffff00'; context.font = "20px 'Press Start 2P'"; context.fillText(`Score: ${this.game.score}`, 20, 30); }
+    }
+
+    class Game {
+        constructor(width, height, difficulty) {
+            this.width = width; this.height = height; this.difficulty = difficulty;
+            this.setDifficultyParams();
+            this.player = new Player(this); this.keys = new Set(); this.projectiles = []; this.invaderProjectiles = [];
+            this.invaderGrid = new InvaderGrid(this); this.ui = new UI(this); this.score = 0; this.gameOver = false;
+            this.handleKeyDown = e => { this.keys.add(e.key); if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); this.player.shoot(); } };
+            this.handleKeyUp = e => { this.keys.delete(e.key); };
+            window.addEventListener('keydown', this.handleKeyDown); window.addEventListener('keyup', this.handleKeyUp);
+        }
+        setDifficultyParams() {
+            if (this.difficulty === 'easy') { this.invaderSpeed = 1; this.maxProjectiles = 5; this.invaderShootChance = 0.002; } 
+            else if (this.difficulty === 'medium') { this.invaderSpeed = 2; this.maxProjectiles = 3; this.invaderShootChance = 0.005; } 
+            else if (this.difficulty === 'hard') { this.invaderSpeed = 3; this.maxProjectiles = 2; this.invaderShootChance = 0.01; }
+        }
+        update() {
+            if (this.gameOver) return;
+            this.player.speed = 0; if (this.keys.has('ArrowLeft')) this.player.speed = -this.player.maxSpeed; if (this.keys.has('ArrowRight')) this.player.speed = this.player.maxSpeed;
+            this.player.update(); this.invaderGrid.update();
+            this.projectiles.forEach(p => p.update()); this.projectiles = this.projectiles.filter(p => !p.markedForDeletion);
+            this.invaderProjectiles.forEach(p => p.update()); this.invaderProjectiles = this.invaderProjectiles.filter(p => !p.markedForDeletion);
+            this.invaderGrid.invaders.forEach((invader) => {
+                this.projectiles.forEach((projectile) => { if (this.checkCollision({ ...invader, x: invader.x + this.invaderGrid.x, y: invader.y + this.invaderGrid.y }, projectile)) { invader.markedForDeletion = true; projectile.markedForDeletion = true; this.score++; } });
+                const invaderAbsoluteY = invader.y + this.invaderGrid.y; if (this.checkCollision({ ...invader, x: invader.x + this.invaderGrid.x, y: invaderAbsoluteY }, this.player) || invaderAbsoluteY + invader.height > this.player.y) { this.gameOver = true; showGameOver(); }
+            });
+            this.invaderGrid.invaders = this.invaderGrid.invaders.filter(inv => !inv.markedForDeletion);
+            this.invaderProjectiles.forEach(projectile => { if (this.checkCollision(projectile, this.player)) { projectile.markedForDeletion = true; this.gameOver = true; showGameOver(); } });
+            if (this.invaderGrid.invaders.length === 0){ this.score += 100; this.invaderSpeed *= 1.2; this.invaderGrid = new InvaderGrid(this); }
+        }
+        draw(context) { this.player.draw(context); this.invaderGrid.invaders.forEach(inv => inv.draw(context)); this.projectiles.forEach(p => p.draw(context)); this.invaderProjectiles.forEach(p => p.draw(context)); this.ui.draw(context); }
+        checkCollision(rect1, rect2) { return (rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y); }
+        cleanup() { window.removeEventListener('keydown', this.handleKeyDown); window.removeEventListener('keyup', this.handleKeyUp); }
+    }
+
+    // --- GAME LOGIC ---
+    function animate() {
+        if (!game || game.gameOver) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        game.update();
+        game.draw(ctx);
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function startGame(difficulty) {
+        if (game) game.cleanup();
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        game = new Game(canvas.width, canvas.height, difficulty);
+        startScreen.style.display = 'none';
+        gameOverScreen.style.display = 'none';
+        animate();
+    }
+    
+    function showGameOver(){
+        if(game) { game.gameOver = true; game.cleanup(); }
+        finalScoreEl.textContent = game.score;
+        gameOverScreen.style.display = 'flex';
+    }
+    
+    function restart(){
+        startScreen.style.display = 'flex';
+        gameOverScreen.style.display = 'none';
+    }
+    
+    highscoreForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const playerName = document.getElementById('player-name').value;
+        const score = game.score;
+        const payload = { player_name: playerName, game: 'Space Invaders', score: score };
+        try {
+            const response = await fetch("{% url 'games:save_score' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify(payload)
+            });
+            if(response.ok) { window.location.href = "{% url 'games:highscores' %}"; } 
+            else { alert('Fehler beim Speichern des Highscores.'); }
+        } catch(error) {
+            console.error('Fehler:', error);
+            alert('Highscore-Service nicht erreichbar.');
+        }
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
             }
         }
-
-        function startGame(difficulty) {
-            currentDifficulty = difficulty;
-            const difficultySettings = {
-                easy:   { lives: 5, speed: 0.4, shootChance: 0.003 },
-                medium: { lives: 3, speed: 0.7, shootChance: 0.006 },
-                hard:   { lives: 1, speed: 1.0, shootChance: 0.01 }
-            };
-
-            const settings = difficultySettings[difficulty];
-            player.lives = settings.lives;
-            invaderGrid.speed = settings.speed;
-            invaderShootChance = settings.shootChance;
-            
-            score = 0;
-            player.x = canvas.width / 2 - 15;
-            invaderGrid.x = 50; 
-            invaderGrid.y = 30;
-            invaderGrid.direction = 1;
-            createInvaders();
-            invaderLasers.length = 0;
-            isGameOver = false;
-            overlay.style.display = 'none';
-
-            cancelAnimationFrame(gameLoopId);
-            gameLoopId = requestAnimationFrame(update);
-        }
-
-        function draw() {
-            context.fillStyle = '#000';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            
-            context.fillStyle = 'lime';
-            context.fillRect(player.x, player.y, player.width, player.height);
-
-            if(playerLaser.active) {
-                context.fillStyle = 'white';
-                context.fillRect(playerLaser.x, playerLaser.y, playerLaser.width, playerLaser.height);
-            }
-
-            context.fillStyle = 'cyan';
-            invaders.forEach(invader => {
-                if(invader.alive) context.fillRect(invader.x, invader.y, invader.width, invader.height);
-            });
-
-            context.fillStyle = 'red';
-            invaderLasers.forEach(laser => {
-                context.fillRect(laser.x, laser.y, laser.width, laser.height);
-            });
-
-            scoreDisplay.textContent = `Score: ${score}`;
-            livesDisplay.textContent = `Leben: ${player.lives}`;
-        }
-
-        function update() {
-            if (isGameOver) return;
-
-            if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-            if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed;
-            if (keys[' '] && !playerLaser.active) {
-                playerLaser.active = true;
-                playerLaser.x = player.x + player.width / 2 - playerLaser.width / 2;
-                playerLaser.y = player.y;
-            }
-
-            if(playerLaser.active) {
-                playerLaser.y -= playerLaser.speed;
-                if(playerLaser.y < 0) playerLaser.active = false;
-            }
-
-            let dropDown = false;
-            invaders.forEach(invader => {
-                if(invader.alive) {
-                     if( (invader.x + invader.width >= canvas.width && invaderGrid.direction > 0) || 
-                         (invader.x <= 0 && invaderGrid.direction < 0) ) {
-                        dropDown = true;
-                    }
-                }
-            });
-            
-            if(dropDown) {
-                invaderGrid.direction *= -1;
-                invaders.forEach(invader => invader.y += invaderGrid.drop);
-            }
-            
-            invaders.forEach(invader => {
-                invader.x += invaderGrid.speed * invaderGrid.direction;
-                if(invader.alive && invader.y + invader.height >= player.y) gameOver(false);
-            });
-            
-            invaders.forEach(invader => {
-                if(invader.alive && Math.random() < invaderShootChance) {
-                    invaderLasers.push({ x: invader.x + invader.width/2, y: invader.y + invader.height, width: 3, height: 10, speed: 4 });
-                }
-            });
-
-            invaderLasers.forEach((laser, index) => {
-                laser.y += laser.speed;
-                if(laser.y > canvas.height) invaderLasers.splice(index, 1);
-            });
-
-            invaders.forEach(invader => {
-                if(invader.alive && playerLaser.active &&
-                   playerLaser.x < invader.x + invader.width && playerLaser.x + playerLaser.width > invader.x &&
-                   playerLaser.y < invader.y + invader.height && playerLaser.y + playerLaser.height > invader.y) {
-                    invader.alive = false;
-                    playerLaser.active = false;
-                    score += 100;
-                }
-            });
-
-            invaderLasers.forEach((laser, index) => {
-                if(laser.x < player.x + player.width && laser.x + laser.width > player.x &&
-                   laser.y < player.y + player.height && laser.y + laser.height > player.y) {
-                    invaderLasers.splice(index, 1);
-                    player.lives--;
-                    if(player.lives <= 0) gameOver(false);
-                }
-            });
-
-            if (invaders.every(invader => !invader.alive)) gameOver(true);
-
-            draw();
-            gameLoopId = requestAnimationFrame(update);
-        }
-        
-        function gameOver(playerWon) {
-            cancelAnimationFrame(gameLoopId);
-            isGameOver = true;
-            overlay.style.display = 'flex';
-            
-            if (playerWon) {
-                 overlay.innerHTML = `<h3>Du hast gewonnen!</h3><p>Dein Score: ${score}</p><form id="highscore-form"><input type="text" id="player-name" placeholder="Dein Name..." required><button type="submit">Highscore speichern</button></form><p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
-                document.getElementById('highscore-form').addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    fetch("{% url 'games:save_score' %}", {
-                        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify({ player_name: document.getElementById('player-name').value, score: score, game: 'Space Invaders', difficulty: currentDifficulty })
-                    }).then(() => window.location.href = "{% url 'games:highscores' %}");
-                });
-            } else {
-                overlay.innerHTML = `<h3>Game Over!</h3><p>Dein Score: ${score}</p><p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
-            }
-        }
-
-        document.addEventListener('keydown', e => { keys[e.key] = true; });
-        document.addEventListener('keyup', e => { keys[e.key] = false; });
-    </script>
+        return cookieValue;
+    }
+</script>
 {% endblock %}

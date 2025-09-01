@@ -102,6 +102,13 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+@app.delete("/highscores/clear/")
+async def clear_all_highscores():
+    """Löscht alle Einträge aus der Highscore-Tabelle."""
+    query = highscores.delete()
+    await database.execute(query)
+    return {"message": "Alle Highscores wurden erfolgreich gelöscht."}
+
 @app.get("/")
 async def read_root():
     return {"message": "Highscore-Service ist online und mit der Datenbank verbunden!"}

@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from collections import Counter
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.models import User
+from django.contrib.admin.views.decorators import staff_member_required
 
 @staff_member_required
 def dashboard(request):
@@ -220,6 +220,7 @@ def tic_tac_toe(request):
 
 def game_list(request):
     games = [
+        {'name': 'Space Invaders', 'description': 'Verteidige die Erde vor den Aliens!', 'category': 'Neue Retro Games', 'url_name': 'games:space_invaders'},
         {'name': 'Zahlen Raten', 'description': 'Ein klassisches Ratespiel.', 'category': 'Alte Retro Games', 'url_name': 'games:guess_the_number'},
         {'name': 'Tic-Tac-Toe', 'description': 'Der unsterbliche Klassiker.', 'category': 'Alte Retro Games', 'url_name': 'games:tic_tac_toe'},
         {'name': 'Schere, Stein, Papier', 'description': 'Glück, Taktik oder beides?', 'category': 'Alte Retro Games', 'url_name': 'games:rock_paper_scissors'},
@@ -263,34 +264,19 @@ def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
 def pacman(request): return render(request, 'games/pacman.html')
+def space_invaders(request):
+    """Rendert die Space Invaders Spielseite."""
+    return render(request, 'games/space_invaders.html')
 # games/views.py --- GANZ AM ENDE HINZUFÜGEN
-
-# ==============================================================================
-# Hinzugefügte Views für die statischen Login/Register-Seiten
-# ==============================================================================
-
-
 @staff_member_required
-def dashboard(request):
-    """Zeigt die Hauptseite des Admin-Dashboards."""
-    # Vorerst übergeben wir keine Daten, das kommt im nächsten Schritt.
-    context = {}
-    return render(request, 'dashboard.html', context)
-# games/views.py --- GANZ AM ENDE HINZUFÜGEN
-
-@staff_member_required
-def delete_user(request, user_id):
-    """Löscht einen Benutzer anhand seiner ID."""
+def clear_highscores(request):
+    """Sendet eine Anfrage an den FastAPI-Service, um alle Highscores zu löschen."""
+    api_url = "http://highscore_api:8001/highscores/clear/"
     try:
-        # Finde den zu löschenden Benutzer
-        user_to_delete = User.objects.get(id=user_id)
-        # Lösche den Benutzer
-        user_to_delete.delete()
-    except User.DoesNotExist:
-        # Falls der Benutzer aus irgendeinem Grund nicht existiert, passiert nichts
-        pass
-    # Leite nach der Aktion zurück zum Dashboard
-    return redirect('dashboard')
-def register_page(request):
-    """Zeigt die HTML-Seite für die Benutzer-Registrierung an."""
-    return render(request, 'register.html')
+        response = requests.delete(api_url)
+        response.raise_for_status()
+        # Leite den Admin nach der Aktion zur (jetzt leeren) Highscore-Liste weiter
+        return redirect('games:highscores')
+    except requests.exceptions.RequestException as e:
+        # Hier könntest du eine richtige Fehlerseite anzeigen
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
