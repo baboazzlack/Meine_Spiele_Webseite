@@ -1,0 +1,103 @@
+/* Vollständiger Inhalt für: static/css/style.css */
+
+/* --- Import der Google Font --- */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* --- Globale Einstellungen & Sternenhimmel (nicht animiert) --- */
+html {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #000;
+    background-image:
+        radial-gradient(white, rgba(255, 255, 255, .2) 2px, transparent 40px),
+        radial-gradient(white, rgba(255, 255, 255, .15) 1px, transparent 30px),
+        radial-gradient(white, rgba(255, 255, 255, .1) 2px, transparent 40px),
+        radial-gradient(rgba(255, 255, 255, .4), rgba(255, 255, 255, .1) 2px, transparent 30px);
+    background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
+    background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
+    font-family: 'Press Start 2P', cursive;
+    color: #fff;
+    text-align: center;
+}
+
+/* --- Allgemeine Stile für Links und Überschriften --- */
+a {
+    color: #00ffff;
+    text-decoration: none;
+    transition: color 0.2s ease-in-out;
+}
+
+a:hover {
+    color: #ffff00;
+}
+
+h1, h2, h3 {
+    color: #ffff00;
+}
+
+/* --- Layout Container --- */
+.site-header {
+    padding: 40px 10px 20px 10px;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 20px;
+}
+
+.site-footer {
+    margin-top: auto;
+    padding: 20px;
+    font-size: 0.8em;
+    color: #ccc;
+}
+
+/* --- Header & Navigation --- */
+.title-main {
+    font-size: 2.5em;
+    color: #ffff00;
+    text-shadow: 3px 3px 0 #ff0000;
+    margin: 0 0 10px 0;
+}
+
+.title-sub {
+    font-size: 1em;
+    color: #00ffff;
+    margin: 0 0 30px 0;
+}
+
+nav a {
+    font-size: 1.2em;
+    margin: 0 15px;
+}
+
+/* --- Login/Logout Bereich --- */
+.auth-links {
+    margin-top: 25px;
+    font-size: 0.8em;
+}
+
+.auth-links a,
+.auth-links button {
+    display: inline-block;
+    background: none;
+    border: none;
+    color: #00ffff;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    margin-left: 10px;
+    transition: color 0.2s ease-in-out;
+}
+
+.auth-links button:hover,
+.auth-links a:hover {
+    color: #ffff00;
+}
