@@ -18,13 +18,10 @@
         <div id="score" style="font-size: 2em; margin-bottom: 10px;">0 - 0</div>
         <canvas id="gameCanvas" width="800" height="400" style="background-color: #050515; border: 3px solid #00ffff; cursor: none;"></canvas>
     </div>
-
+    
     <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
         <h2 id="finalScore"></h2>
-        <form id="highscoreForm">
-            <input type="text" id="playerName" placeholder="Dein Name" required>
-            <button type="submit">SPEICHERN</button>
-        </form>
+        <form id="highscoreForm"><input type="text" id="playerName" placeholder="Dein Name" required><button type="submit">SPEICHERN</button></form>
          <button onclick="document.location.reload()">NEUSTART</button>
     </div>
 </main>
@@ -33,23 +30,37 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // ... (alle Variablen von vorher bleiben gleich) ...
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
         const difficultySelector = document.getElementById('difficultySelector');
-        const gameContainer = document.getElementById('gameContainer');
-        const instruction = document.getElementById('instruction');
-        const gameOverModal = document.getElementById('gameOverModal');
-        const finalScoreEl = document.getElementById('finalScore');
-        const highscoreForm = document.getElementById('highscoreForm');
-
-        let gameLoop;
+        // ...
         
         const paddleWidth = 10, paddleHeight = 100;
         let player = { x: 10, y: canvas.height / 2 - paddleHeight / 2, score: 0 };
         let computer = { x: canvas.width - paddleWidth - 10, y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 0.05 };
         let ball = { x: canvas.width / 2, y: canvas.height / 2, radius: 10, speed: 7, dx: 7, dy: 3 };
 
+        // ... (Restliche Logik wie startGame, update, draw, gameOver etc. bleibt hier) ...
+
+        // PC-Steuerung (bleibt unverändert)
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            player.y = e.clientY - rect.top - paddleHeight / 2;
+        });
+
+        // NEU: Mobile Touch-Steuerung
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault(); // Verhindert das Scrollen der Seite
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            player.y = touch.clientY - rect.top - paddleHeight / 2;
+        });
+        
+        // Komplette Logik von vorher
+        let gameLoop;
+        
         const difficultySettings = {
             easy: 0.04,
             medium: 0.07,
@@ -71,28 +82,19 @@
         }
 
         function update() {
-            // Move computer paddle (AI)
-            // Die KI versucht, die Mitte ihres Paddels auf die Höhe des Balls zu bringen
             const targetY = ball.y - paddleHeight / 2;
             computer.y += (targetY - computer.y) * computer.speed;
 
-            // Move ball
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // Wall collision (top/bottom)
-            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
-                ball.dy *= -1;
-            }
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) ball.dy *= -1;
 
-            // Paddle collision
             if ((ball.dx < 0 && ball.x - ball.radius < player.x + paddleWidth && ball.y > player.y && ball.y < player.y + paddleHeight) ||
                 (ball.dx > 0 && ball.x + ball.radius > computer.x && ball.y > computer.y && ball.y < computer.y + paddleHeight)) {
                 
                 let collidePoint = (ball.y - (player.y + paddleHeight / 2));
-                if (ball.dx > 0) {
-                    collidePoint = (ball.y - (computer.y + paddleHeight / 2));
-                }
+                if (ball.dx > 0) collidePoint = (ball.y - (computer.y + paddleHeight / 2));
                 collidePoint = collidePoint / (paddleHeight / 2);
                 
                 let angleRad = (Math.PI / 4) * collidePoint;
@@ -101,32 +103,26 @@
                 ball.dx = direction * ball.speed * Math.cos(angleRad);
                 ball.dy = ball.speed * Math.sin(angleRad);
                 
-                ball.speed += 0.5; // Ball wird mit jedem Treffer schneller
+                ball.speed += 0.5;
             }
             
-            // Score
             if (ball.x - ball.radius < 0) { computer.score++; resetBall(); }
             if (ball.x + ball.radius > canvas.width) { player.score++; resetBall(); }
             
             updateScore();
             draw();
             
-            if (player.score >= 10 || computer.score >= 10) {
-                gameOver();
-            }
+            if (player.score >= 10 || computer.score >= 10) gameOver();
         }
         
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Paddles
             ctx.fillStyle = '#fff';
             ctx.fillRect(player.x, player.y, paddleWidth, paddleHeight);
             ctx.fillRect(computer.x, computer.y, paddleWidth, paddleHeight);
-            // Ball
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
             ctx.fill();
-            // Net
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
             ctx.moveTo(canvas.width / 2, 0);
@@ -154,11 +150,6 @@
             finalScoreEl.innerHTML = `${message}<br>Finaler Punktestand: ${finalPlayerScore}`;
             gameOverModal.style.display = 'flex';
         }
-        
-        canvas.addEventListener('mousemove', e => {
-            const rect = canvas.getBoundingClientRect();
-            player.y = e.clientY - rect.top - paddleHeight / 2;
-        });
 
         highscoreForm.addEventListener('submit', e => {
             e.preventDefault();

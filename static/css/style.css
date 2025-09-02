@@ -271,3 +271,72 @@ nav a {
     transform: scale(1.05);
     box-shadow: 0 0 15px #ffff00, inset 0 0 15px #ff00ff;
 }
+/* --- Mobile Controls --- */
+#mobile-controls {
+    display: none; /* Standardmäßig auf großen Bildschirmen ausgeblendet */
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    z-index: 2000;
+    user-select: none; /* Verhindert das Markieren von Text beim Tippen */
+}
+
+#mobile-controls .d-pad {
+    width: 150px;
+    height: 150px;
+    position: relative;
+}
+
+#mobile-controls .action-buttons {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 100px;
+    height: 100px;
+}
+
+.mobile-btn {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-family: 'Press Start 2P', cursive;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.mobile-btn:active {
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* D-Pad Buttons */
+#btn-up { top: 0; left: 50px; width: 50px; height: 50px; }
+#btn-down { bottom: 0; left: 50px; width: 50px; height: 50px; }
+#btn-left { top: 50px; left: 0; width: 50px; height: 50px; }
+#btn-right { top: 50px; right: 0; width: 50px; height: 50px; }
+
+/* Action Buttons */
+#btn-fire {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    font-size: 1.2em;
+    right: 10px;
+    bottom: 10px;
+}
+
+/* Media Query, um die Steuerung nur auf mobilen Geräten anzuzeigen */
+@media (max-width: 768px) {
+    #mobile-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+    }
+}
