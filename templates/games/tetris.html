@@ -1,240 +1,214 @@
-﻿{% extends 'base.html' %}
-{% block title %}Tetris{% endblock %}
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tetris - GFN Retro Hub{% endblock %}
+
 {% block content %}
+<main class="main-content">
     <h2>Tetris</h2>
-
-    <style>
-        #game-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; }
-        #main-game { position: relative; }
-        #game-board { border: 3px solid #32c8e6; background-color: #000; }
-        #game-info { width: 150px; text-align: left; }
-        #next-piece-canvas { border: 2px solid #533483; background-color: #000; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(12, 12, 28, 0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; z-index: 100;}
-        .difficulty-button { display: inline-block; padding: 15px 25px; margin: 10px; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; }
-        .easy { background-color: #28a745; } .medium { background-color: #ffc107; color: #1a1a2e;} .hard { background-color: #dc3545; }
-    </style>
-
-    <div id="game-container">
-        <div id="main-game">
-             <canvas id="game-board" width="300" height="600"></canvas>
-             <div id="overlay">
-                <h3>TETRIS</h3>
-                <p>Wähle eine Schwierigkeitsstufe:</p>
-                <div>
-                    <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
-                    <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
-                    <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
-                </div>
-                <p style="font-size: 0.8em; margin-top: 40px;">Steuerung: Pfeile & Leertaste</p>
-            </div>
-        </div>
-        <div id="game-info">
-            <h3>Score</h3><p id="score-display">0</p>
-            <h3>Level</h3><p id="level-display">1</p>
-            <h3>Nächster Stein</h3><canvas id="next-piece-canvas" width="120" height="120"></canvas>
+    <div style="display: flex; justify-content: center; align-items: flex-start; gap: 20px;">
+        <canvas id="gameCanvas" width="240" height="480" style="background-color: #050515; border: 3px solid #00ffff;"></canvas>
+        <div id="side-panel">
+            <h3>Score</h3>
+            <p id="score">0</p>
+            <h3>Next</h3>
+            <canvas id="nextCanvas" width="80" height="80" style="background-color: #050515; border: 1px solid #ccc;"></canvas>
+            <button id="startButton">Start</button>
         </div>
     </div>
     
-    <script>
-        const canvas = document.getElementById('game-board');
-        const context = canvas.getContext('2d');
-        const nextCanvas = document.getElementById('next-piece-canvas');
-        const nextContext = nextCanvas.getContext('2d');
-        
-        const overlay = document.getElementById('overlay');
-        const scoreDisplay = document.getElementById('score-display');
-        const levelDisplay = document.getElementById('level-display');
+    <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
+        <h2 id="finalScore"></h2>
+        <form id="highscoreForm">
+            <input type="text" id="playerName" placeholder="Dein Name" required>
+            <button type="submit">SPEICHERN</button>
+        </form>
+         <button onclick="document.location.reload()">NEUSTART</button>
+    </div>
+</main>
+{% endblock %}
 
-        const COLS = 10;
-        const ROWS = 20;
-        const BLOCK_SIZE = 30;
-        
-        // KORREKTUR: Die originalen Tetris-Farben!
-        const COLORS = [
-            null, 'cyan', 'yellow', 'purple', 'lime', 'red', 'blue', 'orange'
-        ];
-        
-        const SHAPES = [
-            [], [[1,1,1,1]], [[2,2],[2,2]], [[0,3,0],[3,3,3]], [[4,4,0],[0,4,4]],
-            [[0,5,5],[5,5,0]], [[6,0,0],[6,6,6]], [[0,0,7],[7,7,7]]
-        ];
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextCanvas = document.getElementById('nextCanvas');
+    const nextCtx = nextCanvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const startButton = document.getElementById('startButton');
+    const gameOverModal = document.getElementById('gameOverModal');
+    const finalScoreEl = document.getElementById('finalScore');
+    const highscoreForm = document.getElementById('highscoreForm');
 
-        let board, piece, nextPiece, score, level, linesCleared, dropCounter, dropInterval, lastTime, isGameOver, gameLoopId, currentDifficulty;
+    const COLS = 12;
+    const ROWS = 24;
+    const BLOCK_SIZE = 20;
 
-        function createPiece() {
-            const index = Math.floor(Math.random() * 7) + 1;
-            const matrix = SHAPES[index];
-            return {
-                matrix: matrix,
-                colorIndex: index,
-                x: Math.floor(COLS / 2) - Math.floor(matrix[0].length / 2),
-                y: 0
-            };
-        }
-        
-        function startGame(difficulty) {
-            currentDifficulty = difficulty;
-            const speedMap = { easy: 1000, medium: 800, hard: 500 };
-            dropInterval = speedMap[difficulty];
-            
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-            piece = createPiece();
-            nextPiece = createPiece();
-            score = 0; level = 1; linesCleared = 0;
-            isGameOver = false;
-            lastTime = 0;
-            dropCounter = 0;
-            overlay.style.display = 'none';
+    ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+    nextCtx.scale(BLOCK_SIZE, BLOCK_SIZE);
 
-            cancelAnimationFrame(gameLoopId);
-            update();
-        }
+    let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    let piece, nextPiece;
+    let score = 0;
+    
+    const PIECES = 'TJLOSZI';
+    const COLORS = [null, '#ff00ff', '#ffff00', '#00ffff', '#0000ff', '#ff8000', '#00ff00', '#ff0000'];
 
-        function rotate(matrix) {
-            const result = [];
-            for (let y = 0; y < matrix[0].length; y++) {
-                result[y] = [];
-                for (let x = 0; x < matrix.length; x++) {
-                    result[y][x] = matrix[matrix.length - 1 - x][y];
-                }
+    function createPiece(type) {
+        if (type === 'T') return [[0,0,0], [1,1,1], [0,1,0]];
+        if (type === 'J') return [[2,0,0], [2,2,2], [0,0,0]];
+        if (type === 'L') return [[0,0,3], [3,3,3], [0,0,0]];
+        if (type === 'O') return [[4,4], [4,4]];
+        if (type === 'S') return [[0,5,5], [5,5,0], [0,0,0]];
+        if (type === 'Z') return [[6,6,0], [0,6,6], [0,0,0]];
+        if (type === 'I') return [[0,7,0,0], [0,7,0,0], [0,7,0,0], [0,7,0,0]];
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        board.forEach((row, y) => row.forEach((value, x) => {
+            if (value > 0) {
+                ctx.fillStyle = COLORS[value];
+                ctx.fillRect(x, y, 1, 1);
             }
-            return result;
+        }));
+        if (piece) {
+            ctx.fillStyle = COLORS[piece.shape.flat().find(v => v > 0)];
+            piece.shape.forEach((row, y) => row.forEach((value, x) => {
+                if (value > 0) ctx.fillRect(piece.x + x, piece.y + y, 1, 1);
+            }));
         }
+    }
+    
+    function drawNext() {
+        nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+        if (nextPiece) {
+            nextCtx.fillStyle = COLORS[nextPiece.shape.flat().find(v => v > 0)];
+            nextPiece.shape.forEach((row, y) => row.forEach((value, x) => {
+                if (value > 0) nextCtx.fillRect(x, y, 1, 1);
+            }));
+        }
+    }
 
-        function collide(board, piece) {
-            const { matrix, x, y } = piece;
-            for (let row = 0; row < matrix.length; row++) {
-                for (let col = 0; col < matrix[row].length; col++) {
-                    if (matrix[row][col] && ( (board[row + y] && board[row + y][col + x]) !== 0) ) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        function merge(board, piece) {
-            piece.matrix.forEach((row, r) => {
-                row.forEach((value, c) => {
-                    if (value !== 0) {
-                        board[r + piece.y][c + piece.x] = piece.colorIndex;
-                    }
-                });
-            });
-        }
+    function reset() {
+        const type = PIECES[Math.floor(Math.random() * PIECES.length)];
+        const nextType = PIECES[Math.floor(Math.random() * PIECES.length)];
         
-        // KORREKTUR: Überarbeitete und reparierte Funktion zum Löschen von Reihen
-        function clearLines() {
-            let clearedCount = 0;
-            outer: for (let y = board.length - 1; y >= 0; y--) {
-                for (let x = 0; x < board[y].length; x++) {
-                    if (board[y][x] === 0) {
-                        continue outer; // Wenn eine Zelle leer ist, ist die Reihe nicht voll -> nächste Reihe
-                    }
-                }
-                // Wenn wir hier ankommen, ist die Reihe voll
-                const row = board.splice(y, 1)[0].fill(0); // Reihe löschen und mit 0 füllen
-                board.unshift(row); // Leere Reihe oben einfügen
-                y++; // Index anpassen, da sich das Array verändert hat
-                clearedCount++;
-            }
-            // Score-Berechnung
-            if (clearedCount > 0) {
-                const points = [0, 100, 300, 500, 800]; // Punkte für 1, 2, 3 oder 4 Reihen
-                score += points[clearedCount] * level;
-                linesCleared += clearedCount;
-                if (linesCleared >= level * 10) {
-                    level++;
-                    dropInterval = Math.max(100, dropInterval * 0.9); // 10% schneller
-                }
-            }
+        piece = { x: Math.floor(COLS / 2) - 1, y: 0, shape: createPiece(type) };
+        nextPiece = { shape: createPiece(nextType) };
+        
+        if (collides(board, piece)) {
+            gameOver();
         }
-
-        function pieceDrop() {
+        drawNext();
+    }
+    
+    function drop() {
+        if (!piece) return;
+        let p = { ...piece, y: piece.y + 1 };
+        if (collides(board, p)) {
+            merge();
+            clearLines();
+            reset();
+        } else {
             piece.y++;
-            if (collide(board, piece)) {
-                piece.y--;
-                merge(board, piece);
-                clearLines();
-                piece = nextPiece;
-                nextPiece = createPiece();
-                if (collide(board, piece)) {
-                    gameOver();
+        }
+    }
+
+    function collides(grid, p) {
+        for (let y = 0; y < p.shape.length; y++) {
+            for (let x = 0; x < p.shape[y].length; x++) {
+                if (p.shape[y][x] > 0 && (grid[p.y + y] && grid[p.y + y][p.x + x]) !== 0) {
+                    return true;
                 }
             }
+        }
+        return false;
+    }
+
+    function merge() {
+        piece.shape.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value > 0) {
+                    board[piece.y + y][piece.x + x] = value;
+                }
+            });
+        });
+    }
+
+    function clearLines() {
+        let linesCleared = 0;
+        outer: for (let y = ROWS - 1; y >= 0; y--) {
+            for (let x = 0; x < COLS; x++) {
+                if (board[y][x] === 0) continue outer;
+            }
+            board.splice(y, 1);
+            board.unshift(Array(COLS).fill(0));
+            linesCleared++;
+            y++;
+        }
+        score += linesCleared * linesCleared * 100; // Bonus for multiple lines
+        scoreEl.textContent = score;
+    }
+
+    function rotate() {
+        const shape = piece.shape;
+        const newShape = shape[0].map((_, colIndex) => shape.map(row => row[colIndex]).reverse());
+        let p = { ...piece, shape: newShape };
+        if (!collides(board, p)) piece.shape = newShape;
+    }
+
+    let dropCounter = 0;
+    let lastTime = 0;
+    function gameLoop(time = 0) {
+        if (!piece) return;
+        const deltaTime = time - lastTime;
+        lastTime = time;
+        dropCounter += deltaTime;
+        if (dropCounter > 1000) {
+            drop();
             dropCounter = 0;
         }
-
-        function drawMatrix(matrix, offset, ctx) {
-            matrix.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value !== 0) {
-                        ctx.fillStyle = COLORS[value];
-                        ctx.fillRect((x + offset.x) * BLOCK_SIZE, (y + offset.y) * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-                    }
-                });
-            });
-        }
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+    
+    document.addEventListener('keydown', e => {
+        if (!piece) return;
+        let p = { ...piece };
+        if (e.key === 'ArrowLeft') p.x--;
+        if (e.key === 'ArrowRight') p.x++;
+        if (e.key === 'ArrowDown') drop();
+        if (e.key === 'ArrowUp') rotate();
         
-        function draw() {
-            context.fillStyle = '#000';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            drawMatrix(board, {x: 0, y: 0}, context);
-            drawMatrix(piece.matrix, {x: piece.x, y: piece.y}, context);
+        if (!collides(board, p)) piece.x = p.x;
+    });
 
-            nextContext.fillStyle = '#000';
-            nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-            const nextOffset = { x: (4 - nextPiece.matrix[0].length) / 2, y: (4 - nextPiece.matrix.length) / 2 };
-            drawMatrix(nextPiece.matrix, nextOffset, nextContext);
-        }
+    startButton.addEventListener('click', () => {
+        reset();
+        gameLoop();
+        startButton.style.display = 'none';
+    });
 
-        function update(time = 0) {
-            if (isGameOver) return;
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) pieceDrop();
-            draw();
-            scoreDisplay.textContent = score;
-            levelDisplay.textContent = level;
-            gameLoopId = requestAnimationFrame(update);
-        }
-        
-        function gameOver() {
-            cancelAnimationFrame(gameLoopId);
-            isGameOver = true;
-            overlay.style.display = 'flex';
-            overlay.innerHTML = `
-                <h3>Game Over!</h3><p>Dein Score: ${score}</p>
-                <form id="highscore-form"><input type="text" id="player-name" placeholder="Dein Name..." required><button type="submit">Highscore speichern</button></form>
-                <p style="margin-top:20px; font-size: 0.8em">Neues Spiel:</p>
-                <div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
-            document.getElementById('highscore-form').addEventListener('submit', function(event) {
-                event.preventDefault();
-                fetch("{% url 'games:save_score' %}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: JSON.stringify({ player_name: document.getElementById('player-name').value, score: score, game: 'Tetris', difficulty: currentDifficulty })
-                }).then(() => window.location.href = "{% url 'games:highscores' %}");
-            });
-        }
-        
-        document.addEventListener('keydown', e => {
-            if (isGameOver) return;
-            if (e.key === 'ArrowLeft') { piece.x--; if (collide(board, piece)) piece.x++; }
-            else if (e.key === 'ArrowRight') { piece.x++; if (collide(board, piece)) piece.x--; }
-            else if (e.key === 'ArrowDown') { pieceDrop(); }
-            else if (e.key === 'ArrowUp') {
-                const rotated = rotate(piece.matrix); const posX = piece.x; let offset = 1;
-                while (collide(board, { ...piece, matrix: rotated })) {
-                    piece.x += offset; offset = -(offset + (offset > 0 ? 1 : -1));
-                    if (offset > rotated[0].length + 1) { piece.x = posX; return; }
-                }
-                piece.matrix = rotated;
-            } else if (e.key === ' ') {
-                 while (!collide(board, piece)) { piece.y++; }
-                 piece.y--; pieceDrop();
-            }
-        });
-    </script>
+    function gameOver() {
+        piece = null;
+        finalScoreEl.textContent = `Game Over! Score: ${score}`;
+        gameOverModal.style.display = 'flex';
+    }
+
+    highscoreForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const playerName = document.getElementById('playerName').value;
+        fetch("{% url 'games:save_score' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ player_name: playerName, game: 'Tetris', score: score })
+        }).then(() => window.location.href = "{% url 'games:highscores' %}");
+    });
+});
+</script>
 {% endblock %}

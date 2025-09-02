@@ -1,1 +1,171 @@
-﻿{% extends 'base.html' %}{% block title %}Tic-Tac-Toe{% endblock %}{% block content %}<h2>Tic-Tac-Toe</h2><style>.scoreboard{display:flex;justify-content:center;gap:40px;margin-bottom:20px;}.tic-tac-toe-board{margin:20px auto;border-collapse:collapse}.tic-tac-toe-board td{width:100px;height:100px;border:3px solid #32c8e6;text-align:center;font-size:3em}.tic-tac-toe-board button{width:100%;height:100%;background:0 0;border:none;color:#e0e0e0;font-size:1em;cursor:pointer}.difficulty-button{padding:15px 25px;margin:10px}</style>{% if 'ttt_difficulty' not in request.session %}<h3>Wähle eine Schwierigkeitsstufe:</h3><form method="post">{% csrf_token %}<button class="difficulty-button" type="submit" name="difficulty" value="easy">Leicht</button><button class="difficulty-button" type="submit" name="difficulty" value="medium">Mittel</button><button class="difficulty-button" type="submit" name="difficulty" value="hard">Schwer</button></form>{% else %}<div class="scoreboard"><div>Siege: {{ wins }}</div><div>Niederlagen: {{ losses }}</div></div><table class="tic-tac-toe-board">{% for row in board %}<tr>{% for cell in row %}<td>{% if not cell and not winner %}<form method="post" style="margin:0">{% csrf_token %}<button type="submit" name="move" value="{{ forloop.parentloop.counter0 }},{{ forloop.counter0 }}">&nbsp;</button></form>{% else %}{{ cell }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</table><h3>{{ message }}</h3><div style="margin-top:20px;">{% if winner == 'X' %}<form method="post" style="display:inline-block">{% csrf_token %}<input type="text" name="player_name" placeholder="Dein Name..." required><button type="submit">Highscore speichern!</button></form>{% endif %}{% if winner and winner != 'X' %}<a href="{% url 'games:tic_tac_toe' %}?reset=true">Nächstes Spiel</a>{% endif %}<a href="{% url 'games:tic_tac_toe' %}?reset=true">Spiel neustarten</a></div>{% endif %}{% endblock %}
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tic-Tac-Toe - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <h2>Tic-Tac-Toe</h2>
+    
+    <div id="difficultySelector">
+        <h3>Wähle einen Gegner:</h3>
+        <button class="difficulty-btn" data-difficulty="easy">Leicht</button>
+        <button class="difficulty-btn" data-difficulty="hard">Schwer</button>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <div id="status" style="font-size: 1.2em; margin-bottom: 20px;"></div>
+        <div id="board" style="display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 5px; justify-content: center;"></div>
+        <button id="resetButton" style="margin-top: 20px;">Neues Spiel</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .cell { width: 100px; height: 100px; border: 2px solid #00ffff; display: flex; justify-content: center; align-items: center; font-size: 3em; cursor: pointer; }
+    .difficulty-btn { font-family: 'Press Start 2P', cursive; cursor: pointer; padding: 10px 15px; margin: 5px; }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        const resetButton = document.getElementById('resetButton');
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        const difficultySelector = document.getElementById('difficultySelector');
+        const gameContainer = document.getElementById('gameContainer');
+        
+        let board = Array(9).fill(null);
+        const player = 'X', computer = 'O';
+        let isGameActive = true, difficulty = 'easy';
+
+        const winningConditions = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+
+        difficultyButtons.forEach(b => b.addEventListener('click', e => startGame(e.target.dataset.difficulty)));
+        resetButton.addEventListener('click', resetGame);
+
+        function startGame(level) {
+            difficulty = level;
+            difficultySelector.style.display = 'none';
+            gameContainer.style.display = 'block';
+            resetGame();
+        }
+
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for(let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
+        }
+
+        function handleCellClick(e) {
+            const index = e.target.dataset.index;
+            if (board[index] || !isGameActive) return;
+
+            board[index] = player;
+            e.target.textContent = player;
+
+            if (checkWinner(board, player)) {
+                endGame(false);
+            } else if (board.every(cell => cell)) {
+                endGame(true);
+            } else {
+                isGameActive = false; // Disable board during computer's turn
+                statusElement.textContent = "Computer denkt...";
+                setTimeout(computerMove, 500);
+            }
+        }
+
+        function computerMove() {
+            let move;
+            if (difficulty === 'hard') {
+                move = minimax(board, computer).index;
+            } else { // Easy
+                let availableMoves = board.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+                move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+            }
+            
+            board[move] = computer;
+            document.querySelector(`.cell[data-index='${move}']`).textContent = computer;
+            
+            if (checkWinner(board, computer)) {
+                endGame(false);
+            } else if (board.every(cell => cell)) {
+                endGame(true);
+            } else {
+                isGameActive = true;
+                statusElement.textContent = "Du bist dran (X)";
+            }
+        }
+        
+        function checkWinner(currentBoard, currentPlayer) {
+            return winningConditions.some(condition => {
+                return condition.every(index => currentBoard[index] === currentPlayer);
+            });
+        }
+        
+        function endGame(draw) {
+            isGameActive = false;
+            if (draw) statusElement.textContent = "Unentschieden!";
+            else statusElement.textContent = `${checkWinner(board, player) ? 'Du hast gewonnen!' : 'Computer hat gewonnen!'}`;
+        }
+
+        function resetGame() {
+            board.fill(null);
+            isGameActive = true;
+            statusElement.textContent = 'Du bist dran (X)';
+            document.querySelectorAll('.cell').forEach(cell => cell.textContent = '');
+        }
+
+        function minimax(newBoard, currentPlayer) {
+            const availSpots = newBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+            if (checkWinner(newBoard, player)) return { score: -10 };
+            if (checkWinner(newBoard, computer)) return { score: 10 };
+            if (availSpots.length === 0) return { score: 0 };
+
+            const moves = [];
+            for (let i = 0; i < availSpots.length; i++) {
+                const move = {};
+                move.index = availSpots[i];
+                newBoard[availSpots[i]] = currentPlayer;
+
+                if (currentPlayer === computer) {
+                    const result = minimax(newBoard, player);
+                    move.score = result.score;
+                } else {
+                    const result = minimax(newBoard, computer);
+                    move.score = result.score;
+                }
+                newBoard[availSpots[i]] = null;
+                moves.push(move);
+            }
+
+            let bestMove;
+            if (currentPlayer === computer) {
+                let bestScore = -10000;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score > bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = i;
+                    }
+                }
+            } else {
+                let bestScore = 10000;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score < bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = i;
+                    }
+                }
+            }
+            return moves[bestMove];
+        }
+
+        createBoard();
+    });
+</script>
+{% endblock %}

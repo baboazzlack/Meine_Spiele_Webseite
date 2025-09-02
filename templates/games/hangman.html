@@ -1,1 +1,151 @@
-﻿{% extends 'base.html' %}{% block content %}<h2>Galgenmännchen</h2><style>.word-display{font-size:2.5em;letter-spacing:.5em;margin:30px 0}.keyboard button{font-size:1.2em;width:50px;height:50px;margin:3px}.keyboard button.guessed{background-color:#6c757d;cursor:not-allowed}.hangman-drawing{font-family:monospace;white-space:pre;font-size:1.2em;color:#e94560}</style>{% if 'hangman_difficulty' not in request.session %}<h3>Wähle eine Schwierigkeitsstufe:</h3><form method="post">{% csrf_token %}<button type="submit" name="difficulty" value="easy">Leicht</button><button type="submit" name="difficulty" value="medium">Mittel</button><button type="submit" name="difficulty" value="hard">Schwer</button></form>{% else %}<div class="hangman-drawing">{% if guesses_left <= 5 %}  +---_--+{% endif %}<br>{% if guesses_left <= 5 %}  |      |{% endif %}<br>{% if guesses_left <= 4 %}  |      O{% endif %}<br>{% if guesses_left == 3 %}  |      |{% endif %}{% if guesses_left == 2 %}  |     /|{% endif %}{% if guesses_left <= 1 %}  |     /|\{% endif %}<br>{% if guesses_left <= 3 %}  |     {% endif %}<br>{% if guesses_left == 1 %}  |     /{% endif %}{% if guesses_left <= 0 %}  |     / \{% endif %}<br>{% if guesses_left <= 5 %}  |         {% endif %}<br>{% if guesses_left <= 5 %}=========={% endif %}<br></div><div class="word-display">{{ display_word }}</div>{% if winner %}<h3>{{ message }}</h3>{% if winner == 'player' %}<form method="post">{% csrf_token %}<input type="text" name="player_name" placeholder="Dein Name..." required><button type="submit">Highscore ({{ guesses_left }} übrig) speichern!</button></form>{% endif %}<a href="{% url 'games:hangman' %}?reset=true">Neues Spiel</a>{% else %}<h3>Noch {{ guesses_left }} Fehlversuche.</h3><div class="keyboard"><form method="post">{% csrf_token %}{% for letter in alphabet %}{% if letter in guessed_letters %}<button type="button" class="guessed" disabled>{{ letter }}</button>{% else %}<button type="submit" name="guess" value="{{ letter }}">{{ letter }}</button>{% endif %}{% endfor %}</form></div><a href="{% url 'games:hangman' %}?reset=true">Spiel neustarten</a>{% endif %}{% endif %}{% endblock %}
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Galgenmännchen - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <h2>Galgenmännchen</h2>
+    <p id="instruction">Wähle eine Wortkategorie (Schwierigkeit).</p>
+
+    <div id="difficultySelector">
+        <button class="difficulty-btn" data-difficulty="easy">Leicht (Tiere)</button>
+        <button class="difficulty-btn" data-difficulty="medium">Mittel (Städte)</button>
+        <button class="difficulty-btn" data-difficulty="hard">Schwer (Informatik)</button>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <canvas id="hangmanCanvas" width="300" height="300" style="border: 2px solid #ccc; margin-bottom: 20px;"></canvas>
+        <p id="wordDisplay" style="font-size: 2em; letter-spacing: 0.5em; margin-bottom: 20px;"></p>
+        <div id="keyboard" style="display: flex; flex-wrap: wrap; justify-content: center; max-width: 600px; margin: auto;"></div>
+        <p id="message" style="margin-top: 20px; font-size: 1.5em;"></p>
+        <button id="resetButton" style="display:none;">Neues Spiel</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .key { font-family: 'Press Start 2P', cursive; cursor: pointer; padding: 15px; margin: 5px; background-color: #555; border: 1px solid #fff; color: #fff; }
+    .key:disabled { background-color: #222; color: #666; cursor: not-allowed; }
+    .difficulty-btn { font-family: 'Press Start 2P', cursive; cursor: pointer; padding: 10px 15px; margin: 5px; }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const wordDisplay = document.getElementById('wordDisplay');
+        const keyboardDiv = document.getElementById('keyboard');
+        const message = document.getElementById('message');
+        const resetButton = document.getElementById('resetButton');
+        const canvas = document.getElementById('hangmanCanvas');
+        const ctx = canvas.getContext('2d');
+        const difficultySelector = document.getElementById('difficultySelector');
+        const gameContainer = document.getElementById('gameContainer');
+        const instruction = document.getElementById('instruction');
+
+        const words = {
+            easy: ['HUND', 'KATZE', 'MAUS', 'ELEFANT', 'GIRAFFE', 'KROKODIL'],
+            medium: ['BERLIN', 'HAMBURG', 'MUENCHEN', 'KOELN', 'FRANKFURT', 'STUTTGART'],
+            hard: ['ALGORITHMUS', 'DATENBANK', 'SCHNITTSTELLE', 'FRAMEWORK', 'KOMPILIEREN', 'VARIABEL']
+        };
+
+        let selectedWord = '';
+        let guessedLetters = [];
+        let wrongGuesses = 0;
+        const maxWrongGuesses = 6;
+
+        difficultySelector.addEventListener('click', e => {
+            if(e.target.classList.contains('difficulty-btn')) {
+                startGame(e.target.dataset.difficulty);
+            }
+        });
+
+        function startGame(difficulty) {
+            const wordList = words[difficulty];
+            selectedWord = wordList[Math.floor(Math.random() * wordList.length)];
+            guessedLetters = [];
+            wrongGuesses = 0;
+
+            difficultySelector.style.display = 'none';
+            instruction.textContent = "Errate das Wort!";
+            gameContainer.style.display = 'block';
+            resetButton.style.display = 'none';
+            message.textContent = '';
+            
+            createKeyboard();
+            updateWordDisplay();
+            drawHangman();
+        }
+
+        function createKeyboard() {
+            keyboardDiv.innerHTML = '';
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+                const key = document.createElement('button');
+                key.textContent = letter;
+                key.classList.add('key');
+                key.addEventListener('click', () => handleGuess(letter));
+                keyboardDiv.appendChild(key);
+            });
+        }
+
+        function handleGuess(letter) {
+            if (guessedLetters.includes(letter)) return;
+            guessedLetters.push(letter);
+            document.querySelector(`.key:nth-child(${letter.charCodeAt(0) - 64})`).disabled = true;
+
+            if (selectedWord.includes(letter)) {
+                updateWordDisplay();
+            } else {
+                wrongGuesses++;
+                drawHangman();
+            }
+            checkGameOver();
+        }
+
+        function updateWordDisplay() {
+            wordDisplay.textContent = selectedWord.split('').map(letter => guessedLetters.includes(letter) ? letter : '_').join('');
+        }
+        
+        function drawHangman() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            // Galgen
+            if (wrongGuesses > 0) { ctx.beginPath(); ctx.moveTo(50, 280); ctx.lineTo(250, 280); ctx.stroke(); } // Boden
+            if (wrongGuesses > 0) { ctx.moveTo(100, 280); ctx.lineTo(100, 50); ctx.stroke(); } // Pfosten
+            if (wrongGuesses > 0) { ctx.lineTo(200, 50); ctx.stroke(); } // Querbalken
+            if (wrongGuesses > 0) { ctx.lineTo(200, 80); ctx.stroke(); } // Seil
+            // Männchen
+            if (wrongGuesses > 1) { ctx.beginPath(); ctx.arc(200, 100, 20, 0, Math.PI * 2); ctx.stroke(); } // Kopf
+            if (wrongGuesses > 2) { ctx.beginPath(); ctx.moveTo(200, 120); ctx.lineTo(200, 180); ctx.stroke(); } // Körper
+            if (wrongGuesses > 3) { ctx.moveTo(200, 140); ctx.lineTo(170, 110); ctx.stroke(); } // Linker Arm
+            if (wrongGuesses > 4) { ctx.moveTo(200, 140); ctx.lineTo(230, 110); ctx.stroke(); } // Rechter Arm
+            if (wrongGuesses > 5) { ctx.moveTo(200, 180); ctx.lineTo(170, 210); ctx.stroke(); } // Linkes Bein
+            if (wrongGuesses > 6) { ctx.moveTo(200, 180); ctx.lineTo(230, 210); ctx.stroke(); } // Rechtes Bein
+        }
+
+        function checkGameOver() {
+            if (wrongGuesses >= maxWrongGuesses) {
+                message.textContent = `Verloren! Das Wort war: ${selectedWord}`;
+                message.style.color = '#ff0000';
+                endGame();
+            }
+            if (!wordDisplay.textContent.includes('_')) {
+                message.textContent = 'Gewonnen!';
+                message.style.color = '#00ff00';
+                endGame();
+            }
+        }
+        
+        function endGame() {
+            document.querySelectorAll('.key').forEach(key => key.disabled = true);
+            resetButton.style.display = 'inline-block';
+        }
+
+        resetButton.addEventListener('click', () => {
+            difficultySelector.style.display = 'block';
+            gameContainer.style.display = 'none';
+            instruction.textContent = 'Wähle eine Wortkategorie (Schwierigkeit).';
+        });
+    });
+</script>
+{% endblock %}

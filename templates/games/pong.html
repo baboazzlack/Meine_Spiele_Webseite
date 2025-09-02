@@ -1,93 +1,175 @@
-﻿{% extends 'base.html' %}
-{% block title %}Pong{% endblock %}
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pong - GFN Retro Hub{% endblock %}
+
 {% block content %}
+<main class="main-content">
     <h2>Pong</h2>
-    <style>
-        #game-container { position: relative; width: 600px; height: 400px; margin: 0 auto; cursor: none; }
-        #game-board { border: 3px solid #e0e0e0; background-color: #000; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 1.2em; }
-        .difficulty-button { display: inline-block; padding: 15px 25px; margin: 10px; font-size: 1em; color: #FFFFFF; cursor: pointer; border: 2px solid; }
-        .easy { background-color: #28a745; } .medium { background-color: #ffc107; color: #1a1a2e;} .hard { background-color: #dc3545; }
-    </style>
-    <div id="game-container">
-        <canvas id="game-board" width="600" height="400"></canvas>
-        <div id="overlay">
-            <h3>PONG</h3>
-            <p>Wähle eine Schwierigkeit:</p>
-             <div>
-                <button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button>
-                <button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button>
-                <button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button>
-            </div>
-            <p style="font-size: 0.8em; margin-top: 40px;">Steuerung: Maus</p>
-        </div>
+    <p id="instruction">Wähle die Stärke des Computer-Gegners.</p>
+
+    <div id="difficultySelector">
+        <button class="difficulty-btn" data-difficulty="easy">Leicht</button>
+        <button class="difficulty-btn" data-difficulty="medium">Mittel</button>
+        <button class="difficulty-btn" data-difficulty="hard">Schwer</button>
     </div>
-    <script>
-        const canvas = document.getElementById('game-board'), context = canvas.getContext('2d'), overlay = document.getElementById('overlay');
-        const WINNING_SCORE = 5;
-        const ball = { x: 300, y: 200, radius: 7, speed: 5, dx: 5, dy: 5 };
-        const player = { x: 10, y: 160, width: 10, height: 80, score: 0 };
-        const computer = { x: 580, y: 160, width: 10, height: 80, score: 0 };
-        let gameLoopId, currentDifficulty;
-        function startGame(difficulty) {
-            currentDifficulty = difficulty;
-            player.score = 0; computer.score = 0; resetBall();
-            overlay.style.display = 'none';
-            cancelAnimationFrame(gameLoopId);
-            gameLoopId = requestAnimationFrame(update);
+
+    <div id="gameContainer" style="display: none;">
+        <div id="score" style="font-size: 2em; margin-bottom: 10px;">0 - 0</div>
+        <canvas id="gameCanvas" width="800" height="400" style="background-color: #050515; border: 3px solid #00ffff; cursor: none;"></canvas>
+    </div>
+
+    <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
+        <h2 id="finalScore"></h2>
+        <form id="highscoreForm">
+            <input type="text" id="playerName" placeholder="Dein Name" required>
+            <button type="submit">SPEICHERN</button>
+        </form>
+         <button onclick="document.location.reload()">NEUSTART</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const difficultySelector = document.getElementById('difficultySelector');
+        const gameContainer = document.getElementById('gameContainer');
+        const instruction = document.getElementById('instruction');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScoreEl = document.getElementById('finalScore');
+        const highscoreForm = document.getElementById('highscoreForm');
+
+        let gameLoop;
+        
+        const paddleWidth = 10, paddleHeight = 100;
+        let player = { x: 10, y: canvas.height / 2 - paddleHeight / 2, score: 0 };
+        let computer = { x: canvas.width - paddleWidth - 10, y: canvas.height / 2 - paddleHeight / 2, score: 0, speed: 0.05 };
+        let ball = { x: canvas.width / 2, y: canvas.height / 2, radius: 10, speed: 7, dx: 7, dy: 3 };
+
+        const difficultySettings = {
+            easy: 0.04,
+            medium: 0.07,
+            hard: 0.1
+        };
+
+        difficultySelector.addEventListener('click', e => {
+            if (e.target.classList.contains('difficulty-btn')) {
+                computer.speed = difficultySettings[e.target.dataset.difficulty];
+                startGame();
+            }
+        });
+
+        function startGame() {
+            difficultySelector.style.display = 'none';
+            instruction.style.display = 'none';
+            gameContainer.style.display = 'block';
+            gameLoop = setInterval(update, 1000 / 60);
         }
-        function resetBall() {
-            ball.x = 300; ball.y = 200; ball.speed = 5;
-            ball.dx = Math.random() > 0.5 ? 5 : -5;
-            ball.dy = Math.random() > 0.5 ? 5 : -5;
-        }
-        function draw() {
-            context.fillStyle = '#000'; context.fillRect(0, 0, 600, 400);
-            context.strokeStyle = '#e0e0e0'; context.lineWidth = 4;
-            context.beginPath(); context.setLineDash([10, 10]);
-            context.moveTo(300, 0); context.lineTo(300, 400); context.stroke();
-            context.setLineDash([]);
-            context.fillStyle = '#e0e0e0'; context.font = "40px 'Press Start 2P'";
-            context.fillText(player.score, 150, 50); context.fillText(computer.score, 450, 50);
-            context.beginPath(); context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); context.fill();
-            context.fillRect(player.x, player.y, player.width, player.height);
-            context.fillRect(computer.x, computer.y, computer.width, computer.height);
-        }
+
         function update() {
-            ball.x += ball.dx; ball.y += ball.dy;
-            const aiSpeedMap = { easy: 0.07, medium: 0.1, hard: 0.13 };
-            computer.y += (ball.y - (computer.y + computer.height / 2)) * aiSpeedMap[currentDifficulty];
-            if (ball.y + ball.radius > 400 || ball.y - ball.radius < 0) ball.dy *= -1;
-            let paddle = (ball.x < 300) ? player : computer;
-            if (ball.x - ball.radius < paddle.x + paddle.width && ball.x + ball.radius > paddle.x && ball.y - ball.radius < paddle.y + paddle.height && ball.y + ball.radius > paddle.y) {
-                ball.dx *= -1; ball.speed += 0.5; ball.dx = ball.dx > 0 ? ball.speed : -ball.speed;
+            // Move computer paddle (AI)
+            // Die KI versucht, die Mitte ihres Paddels auf die Höhe des Balls zu bringen
+            const targetY = ball.y - paddleHeight / 2;
+            computer.y += (targetY - computer.y) * computer.speed;
+
+            // Move ball
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Wall collision (top/bottom)
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
+                ball.dy *= -1;
             }
-            if (ball.x > 600) { player.score++; resetBall(); } else if (ball.x < 0) { computer.score++; resetBall(); }
+
+            // Paddle collision
+            if ((ball.dx < 0 && ball.x - ball.radius < player.x + paddleWidth && ball.y > player.y && ball.y < player.y + paddleHeight) ||
+                (ball.dx > 0 && ball.x + ball.radius > computer.x && ball.y > computer.y && ball.y < computer.y + paddleHeight)) {
+                
+                let collidePoint = (ball.y - (player.y + paddleHeight / 2));
+                if (ball.dx > 0) {
+                    collidePoint = (ball.y - (computer.y + paddleHeight / 2));
+                }
+                collidePoint = collidePoint / (paddleHeight / 2);
+                
+                let angleRad = (Math.PI / 4) * collidePoint;
+                let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+                
+                ball.dx = direction * ball.speed * Math.cos(angleRad);
+                ball.dy = ball.speed * Math.sin(angleRad);
+                
+                ball.speed += 0.5; // Ball wird mit jedem Treffer schneller
+            }
+            
+            // Score
+            if (ball.x - ball.radius < 0) { computer.score++; resetBall(); }
+            if (ball.x + ball.radius > canvas.width) { player.score++; resetBall(); }
+            
+            updateScore();
             draw();
-            if (player.score >= WINNING_SCORE) gameOver(true);
-            else if (computer.score >= WINNING_SCORE) gameOver(false);
-            else gameLoopId = requestAnimationFrame(update);
-        }
-        function gameOver(playerWon) {
-            cancelAnimationFrame(gameLoopId);
-            overlay.style.display = 'flex';
-            const scoreDifference = Math.abs(player.score - computer.score);
-            if (playerWon) {
-                 overlay.innerHTML = `<h3>Du hast gewonnen!</h3><p>Endstand: ${player.score} zu ${computer.score}</p><form id="highscore-form"><input type="text" id="player-name" placeholder="Dein Name..." required><button type="submit">Highscore (${scoreDifference} Pkt.) speichern</button></form><p>Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
-                document.getElementById('highscore-form').addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    fetch("{% url 'games:save_score' %}", {
-                        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify({ player_name: document.getElementById('player-name').value, score: scoreDifference, game: 'Pong', difficulty: currentDifficulty })
-                    }).then(() => window.location.href = "{% url 'games:highscores' %}");
-                });
-            } else {
-                overlay.innerHTML = `<h3>Computer hat gewonnen!</h3><p>Endstand: ${player.score} zu ${computer.score}</p><p>Neues Spiel:</p><div><button class="difficulty-button easy" onclick="startGame('easy')">Leicht</button><button class="difficulty-button medium" onclick="startGame('medium')">Mittel</button><button class="difficulty-button hard" onclick="startGame('hard')">Schwer</button></div>`;
+            
+            if (player.score >= 10 || computer.score >= 10) {
+                gameOver();
             }
         }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Paddles
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(player.x, player.y, paddleWidth, paddleHeight);
+            ctx.fillRect(computer.x, computer.y, paddleWidth, paddleHeight);
+            // Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+            // Net
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speed = 7;
+            ball.dx = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+            ball.dy = (Math.random() - 0.5) * 4;
+        }
+        
+        function updateScore() {
+            scoreEl.textContent = `${player.score} - ${computer.score}`;
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            const finalPlayerScore = player.score - computer.score;
+            const message = player.score > computer.score ? "Du hast gewonnen!" : "Der Computer hat gewonnen!";
+            finalScoreEl.innerHTML = `${message}<br>Finaler Punktestand: ${finalPlayerScore}`;
+            gameOverModal.style.display = 'flex';
+        }
+        
         canvas.addEventListener('mousemove', e => {
             const rect = canvas.getBoundingClientRect();
-            player.y = e.clientY - rect.top - player.height / 2;
+            player.y = e.clientY - rect.top - paddleHeight / 2;
         });
-    </script>
+
+        highscoreForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const playerName = document.getElementById('playerName').value;
+            const finalScore = player.score - computer.score;
+            fetch("{% url 'games:save_score' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ player_name: playerName, game: 'Pong', score: finalScore })
+            }).then(() => window.location.href = "{% url 'games:highscores' %}");
+        });
+    });
+</script>
 {% endblock %}

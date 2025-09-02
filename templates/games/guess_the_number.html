@@ -1,1 +1,104 @@
-﻿{% extends 'base.html' %}{% block content %}<h2>Zahlen Raten</h2><h3>{{ message }}</h3>{% if "Richtig!" not in message %}<form method="post"><input type="number" name="guess" autofocus><button type="submit">Raten!</button>{% csrf_token %}</form>{% else %}<a href="{% url 'games:guess_the_number' %}?reset=true">Nochmal spielen</a>{% endif %}{% endblock %}
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Zahlen Raten - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <h2>Zahlen Raten</h2>
+    <p id="instruction">Wähle eine Schwierigkeit, um zu starten.</p>
+
+    <div id="difficultySelector">
+        <button class="difficulty-btn" data-max="50">Leicht (1-50)</button>
+        <button class="difficulty-btn" data-max="100">Mittel (1-100)</button>
+        <button class="difficulty-btn" data-max="200">Schwer (1-200)</button>
+    </div>
+    
+    <div id="game-container" style="margin-top: 30px; display: none;">
+        <input type="number" id="guessInput" placeholder="Deine Zahl..." style="padding: 10px; font-size: 1em; font-family: 'Press Start 2P', cursive;">
+        <button id="guessButton" style="padding: 10px 15px; font-size: 1em; font-family: 'Press Start 2P', cursive; cursor: pointer;">Raten!</button>
+        <p id="message" style="margin-top: 20px; font-size: 1.2em; min-height: 50px;"></p>
+        <button id="resetButton" style="display:none; padding: 10px 15px; font-family: 'Press Start 2P', cursive; cursor: pointer;">Neues Spiel</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+    .difficulty-btn { background-color: #00ffff; color: #000; border: none; padding: 15px 25px; margin: 10px; font-family: 'Press Start 2P', cursive; cursor: pointer; font-size: 1em; }
+    .difficulty-btn:hover { background-color: #ffff00; }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let randomNumber, maxNumber, attempts;
+
+        const difficultySelector = document.getElementById('difficultySelector');
+        const gameContainer = document.getElementById('game-container');
+        const instruction = document.getElementById('instruction');
+        const guessInput = document.getElementById('guessInput');
+        const guessButton = document.getElementById('guessButton');
+        const message = document.getElementById('message');
+        const resetButton = document.getElementById('resetButton');
+
+        difficultySelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('difficulty-btn')) {
+                maxNumber = parseInt(e.target.dataset.max);
+                startGame();
+            }
+        });
+        
+        function startGame() {
+            randomNumber = Math.floor(Math.random() * maxNumber) + 1;
+            attempts = 0;
+            
+            instruction.textContent = `Ich denke an eine Zahl zwischen 1 und ${maxNumber}.`;
+            difficultySelector.style.display = 'none';
+            gameContainer.style.display = 'block';
+            resetGameUI();
+        }
+
+        function checkGuess() {
+            const userGuess = parseInt(guessInput.value);
+            if (isNaN(userGuess) || userGuess < 1 || userGuess > maxNumber) {
+                message.textContent = `Bitte gib eine gültige Zahl zwischen 1 und ${maxNumber} ein!`;
+                message.style.color = '#ff00ff';
+                return;
+            }
+            
+            attempts++;
+            if (userGuess < randomNumber) { message.textContent = 'Zu niedrig!'; message.style.color = '#00ffff'; } 
+            else if (userGuess > randomNumber) { message.textContent = 'Zu hoch!'; message.style.color = '#ffff00'; } 
+            else {
+                message.textContent = `Glückwunsch! Du hast ${randomNumber} in ${attempts} Versuchen erraten!`;
+                message.style.color = '#00ff00';
+                endGame();
+            }
+            guessInput.value = '';
+            guessInput.focus();
+        }
+
+        function endGame() {
+            guessButton.disabled = true;
+            guessInput.disabled = true;
+            resetButton.style.display = 'inline-block';
+        }
+        
+        function resetGameUI() {
+            message.textContent = '';
+            guessButton.disabled = false;
+            guessInput.disabled = false;
+            resetButton.style.display = 'none';
+            guessInput.value = '';
+            guessInput.focus();
+        }
+
+        resetButton.addEventListener('click', () => {
+            gameContainer.style.display = 'none';
+            difficultySelector.style.display = 'block';
+            instruction.textContent = 'Wähle eine Schwierigkeit, um zu starten.';
+        });
+        guessButton.addEventListener('click', checkGuess);
+        guessInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkGuess(); });
+    });
+</script>
+{% endblock %}

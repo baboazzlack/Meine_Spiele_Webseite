@@ -1,193 +1,165 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% load static %}
+
 {% block title %}Space Invaders - GFN Retro Hub{% endblock %}
 
 {% block content %}
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
+<main class="main-content">
+    <h2>Space Invaders</h2>
+    <p id="instruction">Wähle deine Mission (Schwierigkeit).</p>
+
+    <div id="difficultySelector">
+        <button class="difficulty-btn" data-difficulty="easy">Kadett</button>
+        <button class="difficulty-btn" data-difficulty="medium">Pilot</button>
+        <button class="difficulty-btn" data-difficulty="hard">Commander</button>
+    </div>
+
+    <div id="gameContainer" style="display: none;">
+        <div id="score" style="font-size: 1.5em; margin-bottom: 10px;">Score: 0</div>
+        <canvas id="gameCanvas" width="600" height="600" style="background-color: #000; border: 3px solid #00ffff;"></canvas>
+    </div>
     
-    <div id="start-screen" class="screen">
-        <h2>Space Invaders</h2>
-        <p>Wähle eine Schwierigkeitsstufe:</p>
-        <button onclick="startGame('easy')">Leicht</button>
-        <button onclick="startGame('medium')">Mittel</button>
-        <button onclick="startGame('hard')">Schwer</button>
+    <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
+        <h2 id="finalScore"></h2>
+        <form id="highscoreForm"><input type="text" id="playerName" placeholder="Dein Name" required><button type="submit">SPEICHERN</button></form>
+        <button onclick="document.location.reload()">NEUSTART</button>
     </div>
+</main>
+{% endblock %}
 
-    <div id="game-over-screen" class="screen" style="display: none;">
-        <h2>Game Over</h2>
-        <p>Dein Score: <span id="final-score">0</span></p>
-        <form id="highscore-form">
-            <input type="text" id="player-name" placeholder="Dein Name" maxlength="15" required>
-            <button type="submit">Highscore speichern</button>
-        </form>
-        <button onclick="restart()">Erneut spielen</button>
-    </div>
-</div>
-
-<style>
-    #game-container { position: relative; width: 800px; height: 600px; margin: 20px auto; border: 3px solid #00ffff; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
-    #gameCanvas { background-color: #000; display: block; }
-    .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(0, 0, 0, 0.8); color: #ffff00; }
-    .screen button, .screen input { font-family: 'Press Start 2P', cursive; font-size: 1em; padding: 10px 20px; margin-top: 20px; background-color: transparent; border: 2px solid #ffff00; color: #ffff00; cursor: pointer; }
-    .screen input { text-align: center; }
-    .screen button:hover { background-color: #ffff00; color: #000; }
-</style>
-
+{% block extra_js %}
 <script>
-    // --- GAME SETUP ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 800;
-    canvas.height = 600;
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const difficultySelector = document.getElementById('difficultySelector');
+        const gameContainer = document.getElementById('gameContainer');
+        const instruction = document.getElementById('instruction');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScoreEl = document.getElementById('finalScore');
+        const highscoreForm = document.getElementById('highscoreForm');
 
-    const startScreen = document.getElementById('start-screen');
-    const gameOverScreen = document.getElementById('game-over-screen');
-    const finalScoreEl = document.getElementById('final-score');
-    const highscoreForm = document.getElementById('highscore-form');
+        let score = 0;
+        let frames = 0;
+        let game;
+        
+        const difficultySettings = {
+            easy: { speed: 2, fireRate: 100 },
+            medium: { speed: 4, fireRate: 60 },
+            hard: { speed: 6, fireRate: 30 }
+        };
 
-    let game;
-    let animationFrameId;
+        class Player {
+            constructor() { this.x = canvas.width / 2; this.y = canvas.height - 50; this.width = 40; this.height = 20; this.speed = 5; }
+            draw() { ctx.fillStyle = '#00ff00'; ctx.fillRect(this.x - this.width/2, this.y, this.width, this.height); }
+            update(keys) { if (keys.a && this.x > this.width/2) this.x -= this.speed; if (keys.d && this.x < canvas.width - this.width/2) this.x += this.speed; }
+        }
 
-    // --- GAME CLASSES ---
-    class Player {
-        constructor(game) { this.game = game; this.width = 50; this.height = 30; this.x = (this.game.width / 2) - (this.width / 2); this.y = this.game.height - this.height - 20; this.speed = 0; this.maxSpeed = 7; }
-        update() { this.x += this.speed; if (this.x < 0) this.x = 0; if (this.x > this.game.width - this.width) this.x = this.game.width - this.width; }
-        draw(context) { context.fillStyle = '#00ffff'; context.fillRect(this.x, this.y, this.width, this.height); }
-        shoot() { if (this.game.projectiles.length < this.game.maxProjectiles) { this.game.projectiles.push(new Projectile(this.game, this.x + this.width / 2 - 2, this.y)); } }
-    }
+        class Projectile {
+            constructor(x, y, velocity) { this.x = x; this.y = y; this.velocity = velocity; this.radius = 4; }
+            draw() { ctx.fillStyle = this.velocity < 0 ? 'white' : 'red'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); }
+            update() { this.y += this.velocity; }
+        }
+        
+        class Invader {
+            constructor(x, y) { this.x = x; this.y = y; this.width = 30; this.height = 30; }
+            draw() { ctx.fillStyle = '#ffff00'; ctx.fillRect(this.x - this.width/2, this.y, this.width, this.height); }
+        }
 
-    class Projectile {
-        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 4; this.height = 15; this.speed = 10; this.markedForDeletion = false; }
-        update() { this.y -= this.speed; if (this.y < 0) this.markedForDeletion = true; }
-        draw(context) { context.fillStyle = '#ffff00'; context.fillRect(this.x, this.y, this.width, this.height); }
-    }
-
-    class InvaderProjectile {
-        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 5; this.height = 10; this.speed = 5; this.markedForDeletion = false; }
-        update() { this.y += this.speed; if (this.y > this.game.height) this.markedForDeletion = true; }
-        draw(context) { context.fillStyle = '#ff4d4d'; context.fillRect(this.x, this.y, this.width, this.height); }
-    }
-
-    class Invader {
-        constructor(game, x, y) { this.game = game; this.x = x; this.y = y; this.width = 40; this.height = 30; this.markedForDeletion = false; }
-        draw(context) { context.fillStyle = '#00ff00'; context.fillRect(this.game.invaderGrid.x + this.x, this.game.invaderGrid.y + this.y, this.width, this.height); }
-    }
-    
-    class InvaderGrid {
-        constructor(game){ this.game = game; this.x = 0; this.y = 0; this.speedX = this.game.invaderSpeed; this.speedY = 0; this.invaders = []; this.width = 10 * 60 - 20; this.createGrid(); }
-        createGrid(){ for (let row = 0; row < 5; row++) { for (let col = 0; col < 10; col++) { this.invaders.push(new Invader(this.game, col * 60, row * 50)); } } }
-        update(){
-            this.x += this.speedX; this.y += this.speedY; this.speedY = 0;
-            if (this.x < 0 || this.x > this.game.width - this.width) { this.speedX *= -1; this.speedY = 30; }
-            if (Math.random() < this.game.invaderShootChance && this.invaders.length > 0) {
-                const randomInvader = this.invaders[Math.floor(Math.random() * this.invaders.length)];
-                const projectileX = this.x + randomInvader.x + randomInvader.width / 2;
-                const projectileY = this.y + randomInvader.y + randomInvader.height;
-                this.game.invaderProjectiles.push(new InvaderProjectile(this.game, projectileX, projectileY));
+        class Grid {
+            constructor(speed) {
+                this.x = 0; this.y = 30; this.width = 11 * 40; this.velocity = speed;
+                this.invaders = [];
+                for (let i = 0; i < 11; i++) for (let j = 0; j < 5; j++) this.invaders.push(new Invader(i * 40 + 50, j * 40 + 50));
             }
-        }
-    }
-
-    class UI {
-        constructor(game) { this.game = game; }
-        draw(context) { context.fillStyle = '#ffff00'; context.font = "20px 'Press Start 2P'"; context.fillText(`Score: ${this.game.score}`, 20, 30); }
-    }
-
-    class Game {
-        constructor(width, height, difficulty) {
-            this.width = width; this.height = height; this.difficulty = difficulty;
-            this.setDifficultyParams();
-            this.player = new Player(this); this.keys = new Set(); this.projectiles = []; this.invaderProjectiles = [];
-            this.invaderGrid = new InvaderGrid(this); this.ui = new UI(this); this.score = 0; this.gameOver = false;
-            this.handleKeyDown = e => { this.keys.add(e.key); if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); this.player.shoot(); } };
-            this.handleKeyUp = e => { this.keys.delete(e.key); };
-            window.addEventListener('keydown', this.handleKeyDown); window.addEventListener('keyup', this.handleKeyUp);
-        }
-        setDifficultyParams() {
-            if (this.difficulty === 'easy') { this.invaderSpeed = 1; this.maxProjectiles = 5; this.invaderShootChance = 0.002; } 
-            else if (this.difficulty === 'medium') { this.invaderSpeed = 2; this.maxProjectiles = 3; this.invaderShootChance = 0.005; } 
-            else if (this.difficulty === 'hard') { this.invaderSpeed = 3; this.maxProjectiles = 2; this.invaderShootChance = 0.01; }
-        }
-        update() {
-            if (this.gameOver) return;
-            this.player.speed = 0; if (this.keys.has('ArrowLeft')) this.player.speed = -this.player.maxSpeed; if (this.keys.has('ArrowRight')) this.player.speed = this.player.maxSpeed;
-            this.player.update(); this.invaderGrid.update();
-            this.projectiles.forEach(p => p.update()); this.projectiles = this.projectiles.filter(p => !p.markedForDeletion);
-            this.invaderProjectiles.forEach(p => p.update()); this.invaderProjectiles = this.invaderProjectiles.filter(p => !p.markedForDeletion);
-            this.invaderGrid.invaders.forEach((invader) => {
-                this.projectiles.forEach((projectile) => { if (this.checkCollision({ ...invader, x: invader.x + this.invaderGrid.x, y: invader.y + this.invaderGrid.y }, projectile)) { invader.markedForDeletion = true; projectile.markedForDeletion = true; this.score++; } });
-                const invaderAbsoluteY = invader.y + this.invaderGrid.y; if (this.checkCollision({ ...invader, x: invader.x + this.invaderGrid.x, y: invaderAbsoluteY }, this.player) || invaderAbsoluteY + invader.height > this.player.y) { this.gameOver = true; showGameOver(); }
-            });
-            this.invaderGrid.invaders = this.invaderGrid.invaders.filter(inv => !inv.markedForDeletion);
-            this.invaderProjectiles.forEach(projectile => { if (this.checkCollision(projectile, this.player)) { projectile.markedForDeletion = true; this.gameOver = true; showGameOver(); } });
-            if (this.invaderGrid.invaders.length === 0){ this.score += 100; this.invaderSpeed *= 1.2; this.invaderGrid = new InvaderGrid(this); }
-        }
-        draw(context) { this.player.draw(context); this.invaderGrid.invaders.forEach(inv => inv.draw(context)); this.projectiles.forEach(p => p.draw(context)); this.invaderProjectiles.forEach(p => p.draw(context)); this.ui.draw(context); }
-        checkCollision(rect1, rect2) { return (rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y); }
-        cleanup() { window.removeEventListener('keydown', this.handleKeyDown); window.removeEventListener('keyup', this.handleKeyUp); }
-    }
-
-    // --- GAME LOGIC ---
-    function animate() {
-        if (!game || game.gameOver) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        game.update();
-        game.draw(ctx);
-        animationFrameId = requestAnimationFrame(animate);
-    }
-
-    function startGame(difficulty) {
-        if (game) game.cleanup();
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        game = new Game(canvas.width, canvas.height, difficulty);
-        startScreen.style.display = 'none';
-        gameOverScreen.style.display = 'none';
-        animate();
-    }
-    
-    function showGameOver(){
-        if(game) { game.gameOver = true; game.cleanup(); }
-        finalScoreEl.textContent = game.score;
-        gameOverScreen.style.display = 'flex';
-    }
-    
-    function restart(){
-        startScreen.style.display = 'flex';
-        gameOverScreen.style.display = 'none';
-    }
-    
-    highscoreForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const playerName = document.getElementById('player-name').value;
-        const score = game.score;
-        const payload = { player_name: playerName, game: 'Space Invaders', score: score };
-        try {
-            const response = await fetch("{% url 'games:save_score' %}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-                body: JSON.stringify(payload)
-            });
-            if(response.ok) { window.location.href = "{% url 'games:highscores' %}"; } 
-            else { alert('Fehler beim Speichern des Highscores.'); }
-        } catch(error) {
-            console.error('Fehler:', error);
-            alert('Highscore-Service nicht erreichbar.');
-        }
-    });
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+            update() {
+                this.x += this.velocity;
+                if (this.x + this.width >= canvas.width || this.x <= 0) {
+                    this.velocity *= -1;
+                    this.y += 30;
                 }
             }
         }
-        return cookieValue;
-    }
+
+        class Game {
+            constructor(difficulty) {
+                this.player = new Player();
+                this.projectiles = [];
+                this.invaderProjectiles = [];
+                this.grids = [new Grid(difficultySettings[difficulty].speed)];
+                this.keys = {a: false, d: false, ' ': false};
+                this.fireRate = difficultySettings[difficulty].fireRate;
+            }
+            
+            run() {
+                this.player.update(this.keys);
+                this.projectiles.forEach((p, i) => { p.update(); if (p.y < 0) this.projectiles.splice(i, 1); });
+                this.invaderProjectiles.forEach((p, i) => { p.update(); if (p.y > canvas.height) this.invaderProjectiles.splice(i, 1); });
+
+                this.grids.forEach(grid => {
+                    grid.update();
+                    if (frames % this.fireRate === 0 && grid.invaders.length > 0) {
+                        const randomInvader = grid.invaders[Math.floor(Math.random() * grid.invaders.length)];
+                        this.invaderProjectiles.push(new Projectile(randomInvader.x + grid.x, randomInvader.y + grid.y, 4));
+                    }
+                    // Collision detection
+                    grid.invaders.forEach((invader, invaderIndex) => {
+                        this.projectiles.forEach((projectile, projectileIndex) => {
+                            const dist = Math.hypot(projectile.x - (invader.x + grid.x), projectile.y - (invader.y + grid.y));
+                            if (dist < 15) {
+                                grid.invaders.splice(invaderIndex, 1);
+                                this.projectiles.splice(projectileIndex, 1);
+                                score += 100;
+                                scoreEl.textContent = `Score: ${score}`;
+                            }
+                        });
+                    });
+                });
+                
+                this.invaderProjectiles.forEach((p, i) => {
+                    const dist = Math.hypot(p.x - this.player.x, p.y - this.player.y);
+                    if(dist < 15) gameOver();
+                });
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                this.player.draw();
+                this.projectiles.forEach(p => p.draw());
+                this.invaderProjectiles.forEach(p => p.draw());
+                this.grids.forEach(grid => grid.invaders.forEach(invader => invader.draw(grid.x, grid.y)));
+                frames++;
+                requestAnimationFrame(() => this.run());
+            }
+        }
+
+        difficultySelector.addEventListener('click', e => {
+            if (e.target.classList.contains('difficulty-btn')) {
+                difficultySelector.style.display = 'none';
+                instruction.style.display = 'none';
+                gameContainer.style.display = 'block';
+                game = new Game(e.target.dataset.difficulty);
+                game.run();
+            }
+        });
+
+        document.addEventListener('keydown', e => { if(game) game.keys[e.key] = true; });
+        document.addEventListener('keyup', e => { if(game) game.keys[e.key] = false; });
+        document.addEventListener('keypress', e => { if(game && e.key === ' ' && game.projectiles.length < 3) game.projectiles.push(new Projectile(game.player.x, game.player.y, -8)); });
+
+        function gameOver() {
+            cancelAnimationFrame(game.run);
+            finalScoreEl.textContent = `Game Over! Score: ${score}`;
+            gameOverModal.style.display = 'flex';
+        }
+        
+        highscoreForm.addEventListener('submit', e => {
+            e.preventDefault();
+            fetch("{% url 'games:save_score' %}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({ player_name: document.getElementById('playerName').value, game: 'Space Invaders', score: score })
+            }).then(() => window.location.href = "{% url 'games:highscores' %}");
+        });
+    });
 </script>
 {% endblock %}
