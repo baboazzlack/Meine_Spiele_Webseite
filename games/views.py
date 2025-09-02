@@ -16,12 +16,13 @@ def game_list(request):
 def highscore_list(request):
     """
     Behandelt die Anzeige der Highscore-Liste und die passwortgeschützte Reset-Funktion.
+    JETZT MIT VERBESSERTER FEHLERMELDUNG.
     """
     if request.method == 'POST':
         password = request.POST.get('password')
         if password == 'Offenbach069':
             try:
-                response = requests.delete(f"{HIGHSCORE_API_URL}clear/")
+                response = requests.delete(f"{HIGHSCORE_API_URL}clear/", timeout=5)
                 if response.status_code == 200:
                     messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
                 else:
@@ -34,13 +35,16 @@ def highscore_list(request):
 
     scores = []
     try:
-        response = requests.get(HIGHSCORE_API_URL)
+        # Wir fügen einen Timeout hinzu und fangen die Fehler genauer ab
+        response = requests.get(HIGHSCORE_API_URL, timeout=5)
         if response.status_code == 200:
             scores = response.json()
         else:
-             messages.warning(request, 'Die Highscore-Liste konnte nicht geladen werden. Der Service ist möglicherweise nicht erreichbar.')
+             # Spezifische Nachricht, wenn der Server einen Fehler meldet (z.B. 500)
+             messages.warning(request, f'Der Highscore-Service meldet einen Fehler (Statuscode: {response.status_code}).')
     except requests.exceptions.RequestException:
-        messages.warning(request, 'Die Highscore-Liste konnte nicht geladen werden. Der Service ist möglicherweise nicht erreichbar.')
+        # Spezifische Nachricht bei einem Verbindungsproblem
+        messages.warning(request, 'Der Highscore-Service ist nicht erreichbar. Bitte stelle sicher, dass alle Container laufen.')
 
     context = {
         'highscores': scores
@@ -77,7 +81,7 @@ def pacman(request):
      return render(request, 'games/pacman.html')
 
 def space_invaders(request):
-    return render(request, 'games/space_invaders.html')
+    return render(request, 'games-invaders.html')
 
 # --- Logik zum Speichern von Scores ---
 def save_score(request):
