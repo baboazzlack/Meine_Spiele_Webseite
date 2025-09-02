@@ -6,7 +6,7 @@
 {% block content %}
 <main class="main-content">
     <h2>Tetris</h2>
-    <div style="display: flex; justify-content: center; align-items: flex-start; gap: 20px;">
+    <div style="display: flex; justify-content: center; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
         <canvas id="gameCanvas" width="240" height="480" style="background-color: #050515; border: 3px solid #00ffff;"></canvas>
         <div id="side-panel">
             <h3>Score</h3>
@@ -16,13 +16,22 @@
             <button id="startButton">Start</button>
         </div>
     </div>
+
+    <div id="mobile-controls">
+        <div class="d-pad">
+            <button id="btn-up" class="mobile-btn">▲</button>
+            <button id="btn-down" class="mobile-btn">▼</button>
+            <button id="btn-left" class="mobile-btn">◄</button>
+            <button id="btn-right" class="mobile-btn">►</button>
+        </div>
+        <div class="action-buttons">
+            <button id="btn-fire" class="mobile-btn">⟳</button>
+        </div>
+    </div>
     
     <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
         <h2 id="finalScore"></h2>
-        <form id="highscoreForm">
-            <input type="text" id="playerName" placeholder="Dein Name" required>
-            <button type="submit">SPEICHERN</button>
-        </form>
+        <form id="highscoreForm"><input type="text" id="playerName" placeholder="Dein Name" required><button type="submit">SPEICHERN</button></form>
          <button onclick="document.location.reload()">NEUSTART</button>
     </div>
 </main>
@@ -31,184 +40,71 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // ... (alle Variablen und Klassen von vorher bleiben gleich) ...
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const startButton = document.getElementById('startButton');
+    let piece, nextPiece, score = 0;
+    
+    // ... (restliche Spiel-Logik wie `createPiece`, `draw`, `drop`, `rotate` etc. bleibt hier) ...
+
+    function move(dir) {
+        if (!piece) return;
+        let p = { ...piece, x: piece.x + dir };
+        if (!collides(board, p)) piece.x = p.x;
+    }
+    
+    // PC-Steuerung (bleibt unverändert)
+    document.addEventListener('keydown', e => {
+        if (!piece) return;
+        if (e.key === 'ArrowLeft') move(-1);
+        if (e.key === 'ArrowRight') move(1);
+        if (e.key === 'ArrowDown') drop();
+        if (e.key === 'ArrowUp') rotate();
+    });
+
+    // NEU: Mobile Touch-Steuerung
+    const btnUp = document.getElementById('btn-up');
+    const btnDown = document.getElementById('btn-down');
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnFire = document.getElementById('btn-fire'); // 'Fire' ist hier der Rotations-Button
+
+    btnUp.addEventListener('touchstart', e => { e.preventDefault(); rotate(); });
+    btnDown.addEventListener('touchstart', e => { e.preventDefault(); drop(); });
+    btnLeft.addEventListener('touchstart', e => { e.preventDefault(); move(-1); });
+    btnRight.addEventListener('touchstart', e => { e.preventDefault(); move(1); });
+    btnFire.addEventListener('touchstart', e => { e.preventDefault(); rotate(); });
+
+    // -- Komplette Spiellogik von vorher hier einfügen --
     const nextCanvas = document.getElementById('nextCanvas');
     const nextCtx = nextCanvas.getContext('2d');
     const scoreEl = document.getElementById('score');
-    const startButton = document.getElementById('startButton');
     const gameOverModal = document.getElementById('gameOverModal');
     const finalScoreEl = document.getElementById('finalScore');
     const highscoreForm = document.getElementById('highscoreForm');
 
-    const COLS = 12;
-    const ROWS = 24;
-    const BLOCK_SIZE = 20;
-
+    const COLS = 12, ROWS = 24, BLOCK_SIZE = 20;
     ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
     nextCtx.scale(BLOCK_SIZE, BLOCK_SIZE);
-
     let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-    let piece, nextPiece;
-    let score = 0;
-    
     const PIECES = 'TJLOSZI';
     const COLORS = [null, '#ff00ff', '#ffff00', '#00ffff', '#0000ff', '#ff8000', '#00ff00', '#ff0000'];
-
-    function createPiece(type) {
-        if (type === 'T') return [[0,0,0], [1,1,1], [0,1,0]];
-        if (type === 'J') return [[2,0,0], [2,2,2], [0,0,0]];
-        if (type === 'L') return [[0,0,3], [3,3,3], [0,0,0]];
-        if (type === 'O') return [[4,4], [4,4]];
-        if (type === 'S') return [[0,5,5], [5,5,0], [0,0,0]];
-        if (type === 'Z') return [[6,6,0], [0,6,6], [0,0,0]];
-        if (type === 'I') return [[0,7,0,0], [0,7,0,0], [0,7,0,0], [0,7,0,0]];
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        board.forEach((row, y) => row.forEach((value, x) => {
-            if (value > 0) {
-                ctx.fillStyle = COLORS[value];
-                ctx.fillRect(x, y, 1, 1);
-            }
-        }));
-        if (piece) {
-            ctx.fillStyle = COLORS[piece.shape.flat().find(v => v > 0)];
-            piece.shape.forEach((row, y) => row.forEach((value, x) => {
-                if (value > 0) ctx.fillRect(piece.x + x, piece.y + y, 1, 1);
-            }));
-        }
-    }
     
-    function drawNext() {
-        nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-        if (nextPiece) {
-            nextCtx.fillStyle = COLORS[nextPiece.shape.flat().find(v => v > 0)];
-            nextPiece.shape.forEach((row, y) => row.forEach((value, x) => {
-                if (value > 0) nextCtx.fillRect(x, y, 1, 1);
-            }));
-        }
-    }
-
-    function reset() {
-        const type = PIECES[Math.floor(Math.random() * PIECES.length)];
-        const nextType = PIECES[Math.floor(Math.random() * PIECES.length)];
-        
-        piece = { x: Math.floor(COLS / 2) - 1, y: 0, shape: createPiece(type) };
-        nextPiece = { shape: createPiece(nextType) };
-        
-        if (collides(board, piece)) {
-            gameOver();
-        }
-        drawNext();
-    }
-    
-    function drop() {
-        if (!piece) return;
-        let p = { ...piece, y: piece.y + 1 };
-        if (collides(board, p)) {
-            merge();
-            clearLines();
-            reset();
-        } else {
-            piece.y++;
-        }
-    }
-
-    function collides(grid, p) {
-        for (let y = 0; y < p.shape.length; y++) {
-            for (let x = 0; x < p.shape[y].length; x++) {
-                if (p.shape[y][x] > 0 && (grid[p.y + y] && grid[p.y + y][p.x + x]) !== 0) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    function merge() {
-        piece.shape.forEach((row, y) => {
-            row.forEach((value, x) => {
-                if (value > 0) {
-                    board[piece.y + y][piece.x + x] = value;
-                }
-            });
-        });
-    }
-
-    function clearLines() {
-        let linesCleared = 0;
-        outer: for (let y = ROWS - 1; y >= 0; y--) {
-            for (let x = 0; x < COLS; x++) {
-                if (board[y][x] === 0) continue outer;
-            }
-            board.splice(y, 1);
-            board.unshift(Array(COLS).fill(0));
-            linesCleared++;
-            y++;
-        }
-        score += linesCleared * linesCleared * 100; // Bonus for multiple lines
-        scoreEl.textContent = score;
-    }
-
-    function rotate() {
-        const shape = piece.shape;
-        const newShape = shape[0].map((_, colIndex) => shape.map(row => row[colIndex]).reverse());
-        let p = { ...piece, shape: newShape };
-        if (!collides(board, p)) piece.shape = newShape;
-    }
-
-    let dropCounter = 0;
-    let lastTime = 0;
-    function gameLoop(time = 0) {
-        if (!piece) return;
-        const deltaTime = time - lastTime;
-        lastTime = time;
-        dropCounter += deltaTime;
-        if (dropCounter > 1000) {
-            drop();
-            dropCounter = 0;
-        }
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-    
-    document.addEventListener('keydown', e => {
-        if (!piece) return;
-        let p = { ...piece };
-        if (e.key === 'ArrowLeft') p.x--;
-        if (e.key === 'ArrowRight') p.x++;
-        if (e.key === 'ArrowDown') drop();
-        if (e.key === 'ArrowUp') rotate();
-        
-        if (!collides(board, p)) piece.x = p.x;
-    });
-
-    startButton.addEventListener('click', () => {
-        reset();
-        gameLoop();
-        startButton.style.display = 'none';
-    });
-
-    function gameOver() {
-        piece = null;
-        finalScoreEl.textContent = `Game Over! Score: ${score}`;
-        gameOverModal.style.display = 'flex';
-    }
-
-    highscoreForm.addEventListener('submit', e => {
-        e.preventDefault();
-        const playerName = document.getElementById('playerName').value;
-        fetch("{% url 'games:save_score' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ player_name: playerName, game: 'Tetris', score: score })
-        }).then(() => window.location.href = "{% url 'games:highscores' %}");
-    });
+    function createPiece(type) { if (type === 'T') return [[0,0,0], [1,1,1], [0,1,0]]; if (type === 'J') return [[2,0,0], [2,2,2], [0,0,0]]; if (type === 'L') return [[0,0,3], [3,3,3], [0,0,0]]; if (type === 'O') return [[4,4], [4,4]]; if (type === 'S') return [[0,5,5], [5,5,0], [0,0,0]]; if (type === 'Z') return [[6,6,0], [0,6,6], [0,0,0]]; if (type === 'I') return [[0,7,0,0], [0,7,0,0], [0,7,0,0], [0,7,0,0]]; }
+    function draw() { ctx.clearRect(0, 0, canvas.width, canvas.height); board.forEach((row, y) => row.forEach((value, x) => { if (value > 0) { ctx.fillStyle = COLORS[value]; ctx.fillRect(x, y, 1, 1); } })); if (piece) { ctx.fillStyle = COLORS[piece.shape.flat().find(v => v > 0)]; piece.shape.forEach((row, y) => row.forEach((value, x) => { if (value > 0) ctx.fillRect(piece.x + x, piece.y + y, 1, 1); })); } }
+    function drawNext() { nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height); if (nextPiece) { nextCtx.fillStyle = COLORS[nextPiece.shape.flat().find(v => v > 0)]; nextPiece.shape.forEach((row, y) => row.forEach((value, x) => { if (value > 0) nextCtx.fillRect(x, y, 1, 1); })); } }
+    function reset() { const type = PIECES[Math.floor(Math.random() * PIECES.length)]; const nextType = PIECES[Math.floor(Math.random() * PIECES.length)]; piece = { x: Math.floor(COLS / 2) - 1, y: 0, shape: createPiece(type) }; nextPiece = { shape: createPiece(nextType) }; if (collides(board, piece)) gameOver(); drawNext(); }
+    function drop() { if (!piece) return; let p = { ...piece, y: piece.y + 1 }; if (collides(board, p)) { merge(); clearLines(); reset(); } else piece.y++; }
+    function collides(grid, p) { for (let y = 0; y < p.shape.length; y++) for (let x = 0; x < p.shape[y].length; x++) if (p.shape[y][x] > 0 && (grid[p.y + y] && grid[p.y + y][p.x + x]) !== 0) return true; return false; }
+    function merge() { piece.shape.forEach((row, y) => row.forEach((value, x) => { if (value > 0) board[piece.y + y][piece.x + x] = value; })); }
+    function clearLines() { let linesCleared = 0; outer: for (let y = ROWS - 1; y >= 0; y--) { for (let x = 0; x < COLS; x++) if (board[y][x] === 0) continue outer; board.splice(y, 1); board.unshift(Array(COLS).fill(0)); linesCleared++; y++; } score += linesCleared * linesCleared * 100; scoreEl.textContent = score; }
+    function rotate() { const shape = piece.shape; const newShape = shape[0].map((_, colIndex) => shape.map(row => row[colIndex]).reverse()); let p = { ...piece, shape: newShape }; if (!collides(board, p)) piece.shape = newShape; }
+    let dropCounter = 0; let lastTime = 0;
+    function gameLoop(time = 0) { if (!piece) return; const deltaTime = time - lastTime; lastTime = time; dropCounter += deltaTime; if (dropCounter > 1000) { drop(); dropCounter = 0; } draw(); requestAnimationFrame(gameLoop); }
+    startButton.addEventListener('click', () => { reset(); gameLoop(); startButton.style.display = 'none'; });
+    function gameOver() { piece = null; finalScoreEl.textContent = `Game Over! Score: ${score}`; gameOverModal.style.display = 'flex'; }
+    highscoreForm.addEventListener('submit', e => { e.preventDefault(); const pN = document.getElementById('playerName').value; fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: pN, game: 'Tetris', score: score }) }).then(() => window.location.href = "{% url 'games:highscores' %}"); });
 });
 </script>
 {% endblock %}
