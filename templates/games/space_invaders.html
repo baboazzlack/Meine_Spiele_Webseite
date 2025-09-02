@@ -40,50 +40,19 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // ... (alle Variablen und Klassen von vorher bleiben gleich) ...
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
         const difficultySelector = document.getElementById('difficultySelector');
-        // ...
-        let game;
-        
-        class Player { /* ... (bleibt gleich) ... */ }
-        class Projectile { /* ... (bleibt gleich) ... */ }
-        class Invader { /* ... (bleibt gleich) ... */ }
-        class Grid { /* ... (bleibt gleich) ... */ }
-        class Game { /* ... (bleibt gleich) ... */ }
+        const gameContainer = document.getElementById('gameContainer');
+        const instruction = document.getElementById('instruction');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScoreEl = document.getElementById('finalScore');
+        const highscoreForm = document.getElementById('highscoreForm');
 
-        // ... (Funktionen wie gameOver, highscoreForm etc. bleiben hier) ...
-        
-        // PC-Steuerung (bleibt unverändert)
-        document.addEventListener('keydown', e => { if(game) game.keys[e.key.toLowerCase()] = true; });
-        document.addEventListener('keyup', e => { if(game) game.keys[e.key.toLowerCase()] = false; });
-        
-        // NEU: Logik für den "Feuer"-Knopf getrennt
-        function playerFire() {
-            if(game && game.projectiles.length < 3) {
-                game.projectiles.push(new Projectile(game.player.x, game.player.y, -8));
-            }
-        }
-        document.addEventListener('keydown', e => { if(e.key === ' ') playerFire(); });
-
-        // NEU: Mobile Touch-Steuerung
-        const btnLeft = document.getElementById('btn-left');
-        const btnRight = document.getElementById('btn-right');
-        const btnFire = document.getElementById('btn-fire');
-
-        btnLeft.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['a'] = true; });
-        btnLeft.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['a'] = false; });
-        
-        btnRight.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['d'] = true; });
-        btnRight.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['d'] = false; });
-
-        btnFire.addEventListener('touchstart', e => { e.preventDefault(); playerFire(); });
-
-        // Komplette Logik von vorher hier einfügen
         let score = 0;
         let frames = 0;
+        let game;
         
         const difficultySettings = {
             easy: { speed: 2, fireRate: 100 },
@@ -187,6 +156,37 @@
             }
         });
 
+        // Logik für den "Feuer"-Knopf
+        function playerFire() {
+            if(game && game.projectiles.length < 3) {
+                game.projectiles.push(new Projectile(game.player.x, game.player.y, -8));
+            }
+        }
+        
+        // PC-Steuerung
+        document.addEventListener('keydown', e => { 
+            const key = e.key.toLowerCase();
+            if(game) game.keys[key] = true;
+            if(key === ' ') playerFire();
+        });
+        document.addEventListener('keyup', e => { 
+            const key = e.key.toLowerCase();
+            if(game) game.keys[key] = false;
+        });
+
+        // Mobile Touch-Steuerung
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnFire = document.getElementById('btn-fire');
+
+        btnLeft.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['a'] = true; });
+        btnLeft.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['a'] = false; });
+        
+        btnRight.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['d'] = true; });
+        btnRight.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['d'] = false; });
+
+        btnFire.addEventListener('touchstart', e => { e.preventDefault(); playerFire(); });
+        
         function gameOver(gameInstance) {
             cancelAnimationFrame(gameInstance.animationFrameId);
             finalScoreEl.textContent = `Game Over! Score: ${score}`;
@@ -201,7 +201,6 @@
                 body: JSON.stringify({ player_name: document.getElementById('playerName').value, game: 'Space Invaders', score: score })
             }).then(() => window.location.href = "{% url 'games:highscores' %}");
         });
-
     });
 </script>
 {% endblock %}
