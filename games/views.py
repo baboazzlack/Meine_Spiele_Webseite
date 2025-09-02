@@ -1,19 +1,54 @@
-﻿# games/views.py
-
-from django.shortcuts import render, redirect
+﻿from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 import requests
 import json
 
+# Die URL deines FastAPI-Services
 HIGHSCORE_API_URL = "http://highscore_api:8001/highscores/"
 
-# ... (game_list and highscore_list views remain unchanged) ...
+# --- Haupt-Ansichten ---
+
 def game_list(request):
+    """Rendert die Liste aller Spiele."""
     return render(request, 'games/game_list.html')
-# ...
+
+def highscore_list(request):
+    """
+    Behandelt die Anzeige der Highscore-Liste und die passwortgeschützte Reset-Funktion.
+    """
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        if password == 'Offenbach069':
+            try:
+                response = requests.delete(f"{HIGHSCORE_API_URL}clear/")
+                if response.status_code == 200:
+                    messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
+                else:
+                    messages.error(request, f'Fehler beim Löschen. API antwortete mit Status {response.status_code}.')
+            except requests.exceptions.RequestException as e:
+                messages.error(request, f'Verbindungsfehler zur API: {e}')
+        else:
+            messages.error(request, 'Falsches Passwort!')
+        return redirect('games:highscores')
+
+    scores = []
+    try:
+        response = requests.get(HIGHSCORE_API_URL)
+        if response.status_code == 200:
+            scores = response.json()
+        else:
+             messages.warning(request, 'Die Highscore-Liste konnte nicht geladen werden. Der Service ist möglicherweise nicht erreichbar.')
+    except requests.exceptions.RequestException:
+        messages.warning(request, 'Die Highscore-Liste konnte nicht geladen werden. Der Service ist möglicherweise nicht erreichbar.')
+
+    context = {
+        'highscores': scores
+    }
+    return render(request, 'games/highscore_list.html', context)
 
 # --- Ansichten für ALLE fertigen Spiele ---
+
 def guess_the_number(request):
     return render(request, 'games/guess_the_number.html')
 
@@ -21,7 +56,7 @@ def rock_paper_scissors(request):
     return render(request, 'games/rock_paper_scissors.html')
 
 def tic_tac_toe(request):
-    return render(request, 'games/tic_tac_toe.html') # KORRIGIERT
+    return render(request, 'games/tic_tac_toe.html')
 
 def super_breakout(request):
     return render(request, 'games/super_breakout.html')
@@ -42,10 +77,11 @@ def pacman(request):
      return render(request, 'games/pacman.html')
 
 def space_invaders(request):
-    return render(request, 'games-invaders.html')
+    return render(request, 'games/space_invaders.html')
 
-# --- Logik zum Speichern von Scores (unverändert) ---
+# --- Logik zum Speichern von Scores ---
 def save_score(request):
+    """Empfängt einen Score per POST-Request und sendet ihn an den FastAPI-Service."""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
