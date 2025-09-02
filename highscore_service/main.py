@@ -36,12 +36,10 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Sende die neue User-Anzahl an alle
         await self.broadcast_user_count()
 
     async def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
-        # Sende die neue User-Anzahl an die verbleibenden User
         await self.broadcast_user_count()
 
     async def broadcast(self, message: str):
@@ -49,14 +47,18 @@ class ConnectionManager:
             await connection.send_text(message)
 
     async def broadcast_user_count(self):
-        # Erstelle eine Nachricht vom Typ "user_count"
         message = json.dumps({"type": "user_count", "count": len(self.active_connections)})
         await self.broadcast(message)
 
 manager = ConnectionManager()
 app = FastAPI()
 
-origins = ["http://localhost:8000", "http://127.0.0.1:8000"]
+# HIER IST DIE WICHTIGE ÄNDERUNG:
+origins = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://gfn-retro-hub.onrender.com"  # Deine Live-Webseiten-URL
+]
 app.add_middleware(
     CORSMiddleware, allow_origins=origins, allow_credentials=True,
     allow_methods=["*"], allow_headers=["*"],
@@ -80,7 +82,6 @@ async def create_highscore(score: HighscoreIn):
     query = highscores.insert().values(player_name=score.player_name, game=score.game, score=score.score)
     last_record_id = await database.execute(query)
     new_highscore_data = {**score.dict(), "id": last_record_id}
-    # Erstelle eine Nachricht vom Typ "highscore"
     highscore_message = json.dumps({"type": "highscore", "data": new_highscore_data})
     await manager.broadcast(highscore_message)
     return new_highscore_data
@@ -96,7 +97,6 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # Hält die Verbindung offen
             await websocket.receive_text()
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
