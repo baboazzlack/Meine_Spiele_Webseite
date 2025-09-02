@@ -15,7 +15,10 @@
     </div>
 
     <div id="gameContainer" style="display: none; position: relative;">
-        <div id="score" style="font-size: 1.5em; margin-bottom: 10px;">Score: 0</div>
+        <div style="display: flex; justify-content: space-between; max-width: 600px; margin: auto;">
+            <div id="score" style="font-size: 1.5em; margin-bottom: 10px;">Score: 0</div>
+            <div id="lives" style="font-size: 1.5em; margin-bottom: 10px;">Lives: ♥♥♥</div>
+        </div>
         <canvas id="gameCanvas" width="600" height="600" style="background-color: #000; border: 3px solid #00ffff;"></canvas>
     </div>
     
@@ -43,6 +46,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
         const difficultySelector = document.getElementById('difficultySelector');
         const gameContainer = document.getElementById('gameContainer');
         const instruction = document.getElementById('instruction');
@@ -50,20 +54,18 @@
         const finalScoreEl = document.getElementById('finalScore');
         const highscoreForm = document.getElementById('highscoreForm');
 
-        let score = 0;
-        let frames = 0;
-        let game;
+        let score = 0, lives = 3, frames = 0, game;
         
         const difficultySettings = {
-            easy: { speed: 2, fireRate: 100 },
-            medium: { speed: 4, fireRate: 60 },
-            hard: { speed: 6, fireRate: 30 }
+            easy:   { speed: 0.5, fireRate: 90, bulletSpeed: 4 },
+            medium: { speed: 1,   fireRate: 60, bulletSpeed: 6 },
+            hard:   { speed: 1.5, fireRate: 40, bulletSpeed: 8 }
         };
 
         class Player {
             constructor() { this.x = canvas.width / 2; this.y = canvas.height - 50; this.width = 40; this.height = 20; this.speed = 5; }
             draw() { ctx.fillStyle = '#00ff00'; ctx.fillRect(this.x - this.width/2, this.y, this.width, this.height); }
-            update(keys) { if (keys.a && this.x > this.width/2) this.x -= this.speed; if (keys.d && this.x < canvas.width - this.width/2) this.x += this.speed; }
+            update(keys) { if ((keys.a || keys.arrowleft) && this.x > this.width/2) this.x -= this.speed; if ((keys.d || keys.arrowright) && this.x < canvas.width - this.width/2) this.x += this.speed; }
         }
 
         class Projectile {
@@ -79,13 +81,15 @@
 
         class Grid {
             constructor(speed) {
-                this.x = 0; this.y = 30; this.width = 11 * 40; this.velocity = speed;
+                this.x = 0; this.y = 30; this.velocity = speed;
                 this.invaders = [];
-                for (let i = 0; i < 11; i++) for (let j = 0; j < 5; j++) this.invaders.push(new Invader(i * 40 + 50, j * 40 + 50));
+                const cols = 10, rows = 5, spacing = 45;
+                for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) this.invaders.push(new Invader(i * spacing + 70, j * spacing + 50));
+                this.width = (cols - 1) * spacing + 30;
             }
             update() {
                 this.x += this.velocity;
-                if (this.x + this.width >= canvas.width - 20 || this.x <= 20) {
+                if (this.x + this.width >= canvas.width || this.x <= 0) {
                     this.velocity *= -1;
                     this.y += 30;
                 }
@@ -98,29 +102,30 @@
                 this.projectiles = [];
                 this.invaderProjectiles = [];
                 this.grids = [new Grid(difficultySettings[difficulty].speed)];
-                this.keys = {a: false, d: false};
+                this.keys = {};
                 this.fireRate = difficultySettings[difficulty].fireRate;
+                this.bulletSpeed = difficultySettings[difficulty].bulletSpeed;
                 this.animationFrameId = null;
             }
             
             run() {
                 this.player.update(this.keys);
-                this.projectiles.forEach((p, i) => { p.update(); if (p.y < 0) this.projectiles.splice(i, 1); });
-                this.invaderProjectiles.forEach((p, i) => { p.update(); if (p.y > canvas.height) this.invaderProjectiles.splice(i, 1); });
+                this.projectiles.forEach((p, i) => { p.update(); if (p.y + p.radius < 0) this.projectiles.splice(i, 1); });
+                this.invaderProjectiles.forEach((p, i) => { p.update(); if (p.y - p.radius > canvas.height) this.invaderProjectiles.splice(i, 1); });
 
                 this.grids.forEach(grid => {
                     grid.update();
                     if (frames % this.fireRate === 0 && grid.invaders.length > 0) {
                         const randomInvader = grid.invaders[Math.floor(Math.random() * grid.invaders.length)];
-                        this.invaderProjectiles.push(new Projectile(randomInvader.x + grid.x, randomInvader.y + grid.y, 4));
+                        this.invaderProjectiles.push(new Projectile(randomInvader.x + grid.x, randomInvader.y + grid.y, this.bulletSpeed));
                     }
                     
                     for (let i = grid.invaders.length - 1; i >= 0; i--) {
                         const invader = grid.invaders[i];
+                        if (invader.y + grid.y > this.player.y) { gameOver(this); return; } // Invaders reached the bottom
                         for (let j = this.projectiles.length - 1; j >= 0; j--) {
                             const projectile = this.projectiles[j];
-                            const dist = Math.hypot(projectile.x - (invader.x + grid.x), projectile.y - (invader.y + grid.y));
-                            if (dist < 20) {
+                            if (Math.hypot(projectile.x - (invader.x + grid.x), projectile.y - (invader.y + grid.y)) < 20) {
                                 grid.invaders.splice(i, 1);
                                 this.projectiles.splice(j, 1);
                                 score += 100;
@@ -131,10 +136,15 @@
                     }
                 });
                 
-                this.invaderProjectiles.forEach((p) => {
-                    const dist = Math.hypot(p.x - this.player.x, p.y - this.player.y);
-                    if(dist < 15) gameOver(this);
-                });
+                for (let i = this.invaderProjectiles.length - 1; i >= 0; i--) {
+                    const p = this.invaderProjectiles[i];
+                    if (Math.hypot(p.x - this.player.x, p.y - this.player.y) < 15) {
+                        this.invaderProjectiles.splice(i, 1);
+                        lives--;
+                        livesEl.textContent = `Lives: ${'♥'.repeat(lives)}`;
+                        if (lives <= 0) { gameOver(this); return; }
+                    }
+                }
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 this.player.draw();
@@ -156,39 +166,25 @@
             }
         });
 
-        // Logik für den "Feuer"-Knopf
         function playerFire() {
-            if(game && game.projectiles.length < 3) {
-                game.projectiles.push(new Projectile(game.player.x, game.player.y, -8));
-            }
+            if(game && game.projectiles.length < 3) game.projectiles.push(new Projectile(game.player.x, game.player.y, -8));
         }
         
-        // PC-Steuerung
-        document.addEventListener('keydown', e => { 
-            const key = e.key.toLowerCase();
-            if(game) game.keys[key] = true;
-            if(key === ' ') playerFire();
-        });
-        document.addEventListener('keyup', e => { 
-            const key = e.key.toLowerCase();
-            if(game) game.keys[key] = false;
-        });
-
-        // Mobile Touch-Steuerung
+        document.addEventListener('keydown', e => { const key = e.key.toLowerCase(); if(game) game.keys[key] = true; if(key === ' ') playerFire(); });
+        document.addEventListener('keyup', e => { const key = e.key.toLowerCase(); if(game) game.keys[key] = false; });
+        
         const btnLeft = document.getElementById('btn-left');
         const btnRight = document.getElementById('btn-right');
         const btnFire = document.getElementById('btn-fire');
 
         btnLeft.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['a'] = true; });
         btnLeft.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['a'] = false; });
-        
         btnRight.addEventListener('touchstart', e => { e.preventDefault(); if(game) game.keys['d'] = true; });
         btnRight.addEventListener('touchend', e => { e.preventDefault(); if(game) game.keys['d'] = false; });
-
         btnFire.addEventListener('touchstart', e => { e.preventDefault(); playerFire(); });
         
         function gameOver(gameInstance) {
-            cancelAnimationFrame(gameInstance.animationFrameId);
+            if (gameInstance && gameInstance.animationFrameId) cancelAnimationFrame(gameInstance.animationFrameId);
             finalScoreEl.textContent = `Game Over! Score: ${score}`;
             gameOverModal.style.display = 'flex';
         }
