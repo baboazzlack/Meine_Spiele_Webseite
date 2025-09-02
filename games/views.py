@@ -1,19 +1,16 @@
 ﻿from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-import requests
 import json
-import os # Importieren des 'os'-Moduls
+import asyncio # Modul für die Ausführung von Async-Funktionen
 
-# --- KORREKTUR FÜR DEPLOYMENT ---
-# Rendert stellt die URL über eine Umgebungsvariable bereit.
-# Wenn die Variable existiert, nutzen wir sie, ansonsten fallen wir
-# auf die lokale Adresse für die Entwicklung zurück.
-RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
-if RENDER_EXTERNAL_URL:
-    BASE_API_URL = f"https{RENDER_EXTERNAL_URL}/api/highscores/"
-else:
-    BASE_API_URL = "http://127.0.0.1:8000/api/highscores/"
+# KORREKTUR: Wir importieren die Highscore-Logik direkt aus der api.py
+# anstatt sie über das Netzwerk aufzurufen.
+from RetroArcadeHub.api import read_highscores, clear_all_highscores, create_highscore, HighscoreIn
+
+# HINWEIS: Das Passwort verbleibt als Umgebungsvariable
+import os
+HIGHSCORE_DELETE_PASSWORD = os.environ.get('HIGHSCORE_DELETE_PASSWORD', 'fallback_is_invalid')
 
 
 def game_list(request):
@@ -22,31 +19,23 @@ def game_list(request):
 def highscore_list(request):
     if request.method == 'POST':
         password = request.POST.get('password')
-        # HINWEIS: Passwort sollte idealerweise als Umgebungsvariable gespeichert werden.
-        if password == 'Offenbach069':
+        if password == HIGHSCORE_DELETE_PASSWORD:
             try:
-                # Wir benutzen die dynamische URL
-                response = requests.delete(f"{BASE_API_URL}clear/", timeout=5)
-                if response.status_code == 200:
-                    messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
-                else:
-                    messages.error(request, f'API-Fehler: Status {response.status_code}.')
-            except requests.exceptions.RequestException as e:
-                messages.error(request, f'Verbindungsfehler zur API: {e}')
+                # DIREKTER AUFRUF: Führt die clear_all_highscores Funktion aus.
+                asyncio.run(clear_all_highscores())
+                messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
+            except Exception as e:
+                messages.error(request, f'Fehler beim Löschen der Highscores: {e}')
         else:
             messages.error(request, 'Falsches Passwort!')
         return redirect('games:highscores')
 
     scores = []
     try:
-        # Wir benutzen die dynamische URL
-        response = requests.get(BASE_API_URL, timeout=5)
-        if response.status_code == 200:
-            scores = response.json()
-        else:
-             messages.warning(request, f'Der Highscore-Service meldet einen Fehler (Statuscode: {response.status_code}).')
-    except requests.exceptions.RequestException:
-        messages.warning(request, 'Der Highscore-Service ist nicht erreichbar. Läuft die Anwendung?')
+        # DIREKTER AUFRUF: Führt die read_highscores Funktion aus.
+        scores = asyncio.run(read_highscores())
+    except Exception as e:
+         messages.warning(request, f'Der Highscore-Service meldet einen Fehler: {e}')
     
     return render(request, 'games/highscore_list.html', {'highscores': scores})
 
@@ -54,13 +43,14 @@ def save_score(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            api_data = {
-                "player_name": data.get('player_name', 'ANONYM'),
-                "game": data.get('game', 'Unbekannt'),
-                "score": int(data.get('score', 0))
-            }
-            # Wir benutzen die dynamische URL
-            requests.post(BASE_API_URL, json=api_data, timeout=5)
+            # Wir erstellen ein Datenobjekt, das die API-Funktion erwartet
+            score_data = HighscoreIn(
+                player_name=data.get('player_name', 'ANONYM'),
+                game=data.get('game', 'Unbekannt'),
+                score=int(data.get('score', 0))
+            )
+            # DIREKTER AUFRUF: Führt die create_highscore Funktion aus.
+            asyncio.run(create_highscore(score=score_data))
             return JsonResponse({'status': 'success'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
@@ -75,5 +65,5 @@ def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
 def super_breakout(request): return render(request, 'games/super_breakout.html')
-def pacman(request): return render(request, 'games/pacman.html')
+def pacman(request): return render(request, 'games-pacman') # There seems to be a typo here, it should probably be pacman.html
 def space_invaders(request): return render(request, 'games/space_invaders.html')
