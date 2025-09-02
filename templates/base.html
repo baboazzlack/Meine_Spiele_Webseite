@@ -9,7 +9,6 @@
 </head>
 <body>
     <div id="live-user-counter">🔴 LIVE: --</div>
-
     <header class="site-header">
         <h1 class="title-main">GFN Retro Hub</h1>
         <h2 class="title-sub">Deine Zeitmaschine in die goldene Ära der Spiele</h2>
@@ -20,74 +19,57 @@
         </nav>
     </header>
 
-    {% block content %}
-    {% endblock %}
+    {% block content %}{% endblock %}
 
     <footer class="site-footer">
         <p>&copy; 2025 GFN Retro Hub - Eine Reise in die Vergangenheit.</p>
     </footer>
-
     <div class="signature-credit">by Onur Acu</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const userCounter = document.getElementById('live-user-counter');
-            const highscoreList = document.getElementById('highscore-live-list'); // Existiert nur auf der home.html
+            const highscoreList = document.getElementById('highscore-live-list');
+            
+            const socketProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            // Die URL ist jetzt viel einfacher und hat /api/ws am Ende
+            const socketUrl = `${socketProtocol}${window.location.host}/api/ws`;
 
-            const socket = new WebSocket('ws://' + window.location.host.split(':')[0] + ':8001/ws');
+            console.log(`Verbinde WebSocket mit: ${socketUrl}`);
+            const socket = new WebSocket(socketUrl);
 
-            socket.onopen = function(e) {
-                console.log("Globale WebSocket-Verbindung hergestellt.");
-            };
+            socket.onopen = (e) => console.log("Globale WebSocket-Verbindung hergestellt.");
 
-            socket.onmessage = function(event) {
+            socket.onmessage = (event) => {
                 const messageData = JSON.parse(event.data);
-
-                // Fall 1: Nachricht ist ein User-Count-Update
                 if (messageData.type === 'user_count') {
                     userCounter.textContent = `🔴 LIVE: ${messageData.count} User`;
                 }
-
-                // Fall 2: Nachricht ist ein Highscore-Update
                 if (messageData.type === 'highscore' && highscoreList) {
                     const data = messageData.data;
-                    const placeholder = highscoreList.querySelector('li.placeholder');
-                    if (placeholder) {
+                    const placeholder = highscoreList.querySelector('li');
+                    if (placeholder && placeholder.textContent.includes('Warte auf Heldentaten')) {
                         placeholder.style.display = 'none';
                     }
-
                     const newEntry = document.createElement('li');
                     newEntry.textContent = `> ${data.player_name} in ${data.game}: ${data.score}`;
-                    
-                    newEntry.style.color = '#ffff00';
-                    newEntry.style.textShadow = '2px 2px #ff00ff';
-                    newEntry.style.opacity = 0;
-                    newEntry.style.transition = 'opacity 0.5s ease-in-out, transform 0.5s ease-in-out';
-                    newEntry.style.transform = 'translateX(-20px)';
-                    
                     highscoreList.prepend(newEntry);
-
-                    setTimeout(() => { 
-                        newEntry.style.opacity = 1;
-                        newEntry.style.transform = 'translateX(0)';
-                    }, 50);
-                    
-                    while (highscoreList.children.length > 6) {
+                    while (highscoreList.children.length > 5) {
                         highscoreList.removeChild(highscoreList.lastChild);
                     }
                 }
             };
 
-            socket.onclose = function(event) {
-                console.error('WebSocket-Verbindung geschlossen:', event);
+            socket.onclose = (event) => {
                 userCounter.textContent = 'OFFLINE';
                 userCounter.style.color = '#ff0000';
-                userCounter.style.borderColor = '#ff0000';
+            };
+            socket.onerror = (error) => {
+                userCounter.textContent = 'FEHLER';
+                userCounter.style.color = '#ff0000';
             };
         });
     </script>
-    
-    {% block extra_js %}
-    {% endblock %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

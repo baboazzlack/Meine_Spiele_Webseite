@@ -1,2 +1,6 @@
 ﻿Django~=4.2.0
 requests
+fastapi
+uvicorn[standard]
+sqlalchemy
+databases[sqlite]

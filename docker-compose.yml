@@ -1,28 +1,9 @@
+# docker-compose.yml
+
 services:
-  # Unser bestehender Django-Webserver
   web:
     build: .
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    depends_on:
-      - highscore_api
-
-  # Unser FastAPI-Microservice
-  highscore_api:
-    build: ./highscore_service
-    ports:
-      - "8001:8001"
-    volumes:
-      - ./highscore_service:/code
-
-  # NEU: Unser C++ zu WebAssembly Compiler-Service
-  compiler:
-    # Verwendet ein offizielles Image, das Emscripten enthält
-    image: emscripten/emsdk
-    volumes:
-      # Verbindet unseren neuen Spiel-Ordner mit dem Container
-      - ./physics_game:/src
-    # Hält den Container am Leben, damit wir Befehle darin ausführen können
-    command: tail -f /dev/null
