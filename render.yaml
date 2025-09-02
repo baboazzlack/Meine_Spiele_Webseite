@@ -1,0 +1,27 @@
+# Render Blueprint Configuration
+# This file tells Render how to build and run both of our services.
+
+services:
+  # 1. The Django Web Service
+  - type: web
+    name: gfn-retro-hub-web # Der Name deines Haupt-Webdienstes
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.9 # Stellt sicher, dass die richtige Python-Version verwendet wird
+    autoDeploy: true # Automatisches Update bei jedem Push zu GitHub
+    ports:
+      - "8000"
+
+  # 2. The FastAPI Highscore Service
+  - type: web
+    name: gfn-retro-hub-highscore-api # Der Name deines Highscore-Dienstes
+    env: docker
+    dockerfilePath: ./highscore_service/Dockerfile
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.9
+    autoDeploy: true
+    ports:
+      - "8001"
