@@ -1,13 +1,20 @@
-﻿# games/views.py
-
-from django.shortcuts import render, redirect
+﻿from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 import requests
 import json
+import os # Importieren des 'os'-Moduls
 
-# Die API ist jetzt unter demselben Server erreichbar, nur unter dem Pfad /api/
-HIGHSCORE_API_URL = "http://127.0.0.1:8000/api/highscores/"
+# --- KORREKTUR FÜR DEPLOYMENT ---
+# Rendert stellt die URL über eine Umgebungsvariable bereit.
+# Wenn die Variable existiert, nutzen wir sie, ansonsten fallen wir
+# auf die lokale Adresse für die Entwicklung zurück.
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+if RENDER_EXTERNAL_URL:
+    BASE_API_URL = f"https{RENDER_EXTERNAL_URL}/api/highscores/"
+else:
+    BASE_API_URL = "http://127.0.0.1:8000/api/highscores/"
+
 
 def game_list(request):
     return render(request, 'games/game_list.html')
@@ -15,10 +22,11 @@ def game_list(request):
 def highscore_list(request):
     if request.method == 'POST':
         password = request.POST.get('password')
+        # HINWEIS: Passwort sollte idealerweise als Umgebungsvariable gespeichert werden.
         if password == 'Offenbach069':
             try:
-                # Die URL zum Löschen hat jetzt auch /api/ davor
-                response = requests.delete("http://127.0.0.1:8000/api/highscores/clear/", timeout=5)
+                # Wir benutzen die dynamische URL
+                response = requests.delete(f"{BASE_API_URL}clear/", timeout=5)
                 if response.status_code == 200:
                     messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
                 else:
@@ -31,7 +39,8 @@ def highscore_list(request):
 
     scores = []
     try:
-        response = requests.get(HIGHSCORE_API_URL, timeout=5)
+        # Wir benutzen die dynamische URL
+        response = requests.get(BASE_API_URL, timeout=5)
         if response.status_code == 200:
             scores = response.json()
         else:
@@ -40,18 +49,6 @@ def highscore_list(request):
         messages.warning(request, 'Der Highscore-Service ist nicht erreichbar. Läuft die Anwendung?')
     
     return render(request, 'games/highscore_list.html', {'highscores': scores})
-
-# --- Ansichten für alle Spiele bleiben unverändert ---
-def guess_the_number(request): return render(request, 'games/guess_the_number.html')
-def rock_paper_scissors(request): return render(request, 'games/rock_paper_scissors.html')
-def tic_tac_toe(request): return render(request, 'games/tic_tac_toe.html')
-def super_breakout(request): return render(request, 'games/super_breakout.html')
-def hangman(request): return render(request, 'games/hangman.html')
-def snake(request): return render(request, 'games/snake.html')
-def pong(request): return render(request, 'games/pong.html')
-def tetris(request): return render(request, 'games/tetris.html')
-def pacman(request): return render(request, 'games/pacman.html')
-def space_invaders(request): return render(request, 'games/space_invaders.html')
 
 def save_score(request):
     if request.method == 'POST':
@@ -62,9 +59,21 @@ def save_score(request):
                 "game": data.get('game', 'Unbekannt'),
                 "score": int(data.get('score', 0))
             }
-            # Die URL zum Speichern hat jetzt auch /api/ davor
-            requests.post("http://127.0.0.1:8000/api/highscores/", json=api_data, timeout=5)
+            # Wir benutzen die dynamische URL
+            requests.post(BASE_API_URL, json=api_data, timeout=5)
             return JsonResponse({'status': 'success'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'invalid_method'}, status=405)
+
+# --- Ansichten für alle Spiele ---
+def guess_the_number(request): return render(request, 'games/guess_the_number.html')
+def rock_paper_scissors(request): return render(request, 'games/rock_paper_scissors.html')
+def tic_tac_toe(request): return render(request, 'games/tic_tac_toe.html')
+def hangman(request): return render(request, 'games/hangman.html')
+def snake(request): return render(request, 'games/snake.html')
+def pong(request): return render(request, 'games/pong.html')
+def tetris(request): return render(request, 'games/tetris.html')
+def super_breakout(request): return render(request, 'games/super_breakout.html')
+def pacman(request): return render(request, 'games/pacman.html')
+def space_invaders(request): return render(request, 'games/space_invaders.html')

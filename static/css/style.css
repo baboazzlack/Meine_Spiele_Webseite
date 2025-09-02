@@ -20,6 +20,25 @@
   100% { opacity: 0.2; }
 }
 
+@keyframes glitch-anim-1 {
+  0% { clip-path: inset(3% 0 95% 0); }
+  20% { clip-path: inset(85% 0 4% 0); }
+  40% { clip-path: inset(54% 0 33% 0); }
+  60% { clip-path: inset(15% 0 77% 0); }
+  80% { clip-path: inset(91% 0 3% 0); }
+  100% { clip-path: inset(33% 0 59% 0); }
+}
+
+@keyframes glitch-anim-2 {
+  0% { transform: translate(-3px, 1px); }
+  20% { transform: translate(3px, -2px); }
+  40% { transform: translate(-1px, 2px); }
+  60% { transform: translate(2px, 1px); }
+  80% { transform: translate(-2px, -1px); }
+  100% { transform: translate(1px, 2px); }
+}
+
+/* --- Globale Styles & Layout --- */
 html {
   height: 100%;
 }
@@ -36,7 +55,6 @@ body {
     radial-gradient(white, rgba(255, 255, 255, .1) 2px, transparent 40px),
     radial-gradient(rgba(255, 255, 255, .4), rgba(255, 255, 255, .1) 2px, transparent 30px);
   background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
-  /* WICHTIG: Die background-position wurde hier entfernt. Sie wird jetzt von JS gesteuert. */
   font-family: 'Press Start 2P', cursive;
   color: #fff;
   text-align: center;
@@ -72,10 +90,11 @@ a:hover {
   text-shadow: 0 0 5px #ffff00, 0 0 10px #ff00ff;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
   color: #ffff00;
 }
 
+/* --- Seitenstruktur --- */
 .site-header {
   padding: 40px 10px 20px 10px;
   z-index: 10;
@@ -108,6 +127,7 @@ h1, h2, h3 {
   z-index: 10;
 }
 
+/* --- Textelemente & Navigation --- */
 .title-main {
   font-size: 2.5em;
   color: #ffff00;
@@ -127,6 +147,7 @@ nav a {
   margin: 0 15px;
 }
 
+/* --- Spielkarten --- */
 .game-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -171,25 +192,6 @@ nav a {
   transition: opacity 0.3s ease-in-out;
 }
 
-/* --- Glitch-Effekt für Spielkarten --- */
-@keyframes glitch-anim-1 {
-  0% { clip-path: inset(3% 0 95% 0); }
-  20% { clip-path: inset(85% 0 4% 0); }
-  40% { clip-path: inset(54% 0 33% 0); }
-  60% { clip-path: inset(15% 0 77% 0); }
-  80% { clip-path: inset(91% 0 3% 0); }
-  100% { clip-path: inset(33% 0 59% 0); }
-}
-
-@keyframes glitch-anim-2 {
-  0% { transform: translate(-3px, 1px); }
-  20% { transform: translate(3px, -2px); }
-  40% { transform: translate(-1px, 2px); }
-  60% { transform: translate(2px, 1px); }
-  80% { transform: translate(-2px, -1px); }
-  100% { transform: translate(1px, 2px); }
-}
-
 .game-card:hover {
   animation: glitch-anim-2 0.25s infinite;
 }
@@ -199,10 +201,7 @@ nav a {
   content: '► PLAY';
   font-family: 'Press Start 2P', cursive;
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0; width: 100%; height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,48 +211,30 @@ nav a {
 }
 
 .game-card:hover::before {
-  color: #00ffff; /* Glitch-Farbe 1 */
+  color: #00ffff;
   text-shadow: 2px 2px #ff00ff;
   animation: glitch-anim-1 0.3s infinite;
   z-index: 2;
 }
 
 .game-card:hover::after {
-  color: #ff00ff; /* Glitch-Farbe 2 */
+  color: #ff00ff;
   text-shadow: -2px -2px #00ffff;
   animation: glitch-anim-1 0.3s infinite reverse;
   z-index: 3;
 }
 
-/* --- Signatur --- */
-.signature-credit {
-  position: fixed;
-  bottom: 15px;
-  right: 20px;
-  color: rgba(204, 204, 204, 0.5); /* Halbtransparentes Grau */
-  font-family: 'Press Start 2P', cursive;
-  font-size: 0.7em;
-  z-index: 1000;
-  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.8);
-  pointer-events: none; /* Stellt sicher, dass man nicht versehentlich darauf klickt */
+/* --- UI-Elemente --- */
+.difficulty-btn {
+    background-color: #00ffff; color: #000; border: none;
+    padding: 15px 25px; margin: 10px; font-family: 'Press Start 2P', cursive;
+    cursor: pointer; font-size: 1em; transition: all 0.2s ease-in-out;
 }
+.difficulty-btn:hover { background-color: #ffff00; box-shadow: 0 0 15px #ffff00; }
 
-@media (max-width: 768px) {
-  .title-main {
-    font-size: 1.8em;
-    animation: none;
-    text-shadow: 3px 3px 0 #ff0000, 0 0 10px #ffff00;
-  }
-  .title-sub { font-size: 0.8em; }
-  nav a { font-size: 1em; margin: 0 8px; }
-  .game-grid { grid-template-columns: 1fr; }
-  .game-card:hover { transform: none; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
-}
-/* --- Live User Counter --- */
 #live-user-counter {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 20px; right: 20px;
     padding: 10px 15px;
     background-color: rgba(30, 30, 30, 0.8);
     border: 2px solid #ff00ff;
@@ -266,14 +247,22 @@ nav a {
     min-width: 150px;
     transition: all 0.3s ease-in-out;
 }
+#live-user-counter:hover { transform: scale(1.05); }
 
-#live-user-counter:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px #ffff00, inset 0 0 15px #ff00ff;
+.signature-credit {
+  position: fixed;
+  bottom: 15px; right: 20px;
+  color: rgba(204, 204, 204, 0.5);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.7em;
+  z-index: 1000;
+  text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
 }
-/* --- Mobile Controls --- */
+
+/* --- Mobile Steuerung --- */
 #mobile-controls {
-    display: none; /* Standardmäßig auf großen Bildschirmen ausgeblendet */
+    display: none; /* Standardmäßig komplett unsichtbar */
     position: fixed;
     bottom: 20px;
     left: 50%;
@@ -281,22 +270,18 @@ nav a {
     width: 90%;
     max-width: 400px;
     z-index: 2000;
-    user-select: none; /* Verhindert das Markieren von Text beim Tippen */
+    user-select: none;
+}
+/* KORREKTUR: Die Steuerung wird NUR sichtbar, wenn JavaScript die 'visible'-Klasse hinzufügt */
+#mobile-controls.visible {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
 }
 
-#mobile-controls .d-pad {
-    width: 150px;
-    height: 150px;
-    position: relative;
-}
 
-#mobile-controls .action-buttons {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 100px;
-    height: 100px;
-}
+#mobile-controls .d-pad { width: 150px; height: 150px; position: relative; }
+#mobile-controls .action-buttons { position: absolute; right: 0; bottom: 0; width: 100px; height: 100px; }
 
 .mobile-btn {
     position: absolute;
@@ -308,35 +293,146 @@ nav a {
     justify-content: center;
     align-items: center;
 }
-.mobile-btn:active {
-    background-color: rgba(255, 255, 255, 0.6);
-}
+.mobile-btn:active { background-color: rgba(255, 255, 255, 0.6); }
 
-/* D-Pad Buttons */
 #btn-up { top: 0; left: 50px; width: 50px; height: 50px; }
 #btn-down { bottom: 0; left: 50px; width: 50px; height: 50px; }
 #btn-left { top: 50px; left: 0; width: 50px; height: 50px; }
 #btn-right { top: 50px; right: 0; width: 50px; height: 50px; }
+#btn-fire { width: 80px; height: 80px; border-radius: 50%; font-size: 1.2em; right: 10px; bottom: 10px; }
 
-/* Action Buttons */
-#btn-fire {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    font-size: 1.2em;
-    right: 10px;
-    bottom: 10px;
-}
-
-/* Media Query, um die Steuerung nur auf mobilen Geräten anzuzeigen */
+/* --- Media Query für mobile Geräte --- */
 @media (max-width: 768px) {
-    #mobile-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-    }
-    #gameCanvas {
+    .title-main { font-size: 1.8em; animation: none; text-shadow: 3px 3px 0 #ff0000, 0 0 10px #ffff00; }
+    .title-sub { font-size: 0.8em; }
+    nav a { font-size: 1em; margin: 0 8px; }
+    .game-grid { grid-template-columns: 1fr; }
+    .game-card:hover { transform: none; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
+
+    #gameCanvas { /* Gilt für alte Spiele, kann entfernt/angepasst werden */
         width: 100%;
         height: auto;
     }
 }
+
+/* ------------------------------------------- */
+/* --- STILE FÜR SPACE INVADERS --- */
+/* ------------------------------------------- */
+
+.si-game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+}
+
+#si-game-canvas {
+    background: #000;
+    border: 3px solid #00ffff;
+    box-shadow: 0 0 15px #00ffff, inset 0 0 10px #00ffff;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    max-height: 80vh;
+}
+
+.si-ui-panel {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 0;
+    font-size: 1.2em;
+    color: #00ffff;
+    text-shadow: 1px 1px 0px #ff00ff;
+}
+
+.si-game-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    z-index: 50;
+}
+
+.si-game-overlay.hidden {
+    display: none;
+}
+
+.si-game-overlay h2 {
+    font-size: 2.5em;
+    color: #ffff00;
+    animation: neon-glow 1.5s ease-in-out infinite alternate;
+    margin-bottom: 20px;
+}
+
+.si-difficulty-select button,
+.si-game-overlay button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.2em;
+    background-color: transparent;
+    border: 2px solid #00ffff;
+    color: #00ffff;
+    padding: 15px 30px;
+    margin: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 0 5px #00ffff;
+}
+
+.si-difficulty-select button:hover,
+.si-game-overlay button:hover {
+    background-color: #00ffff;
+    color: #000;
+    box-shadow: 0 0 20px #00ffff, 0 0 30px #00ffff;
+}
+
+#si-final-score {
+    font-size: 1.5em;
+    margin: 20px 0;
+    color: #fff;
+}
+
+#si-highscore-form input {
+    font-family: 'Press Start 2P', cursive;
+    background: #111;
+    border: 2px solid #00ffff;
+    padding: 10px;
+    color: #00ffff;
+    font-size: 1em;
+    margin-right: 10px;
+    width: 200px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+#si-highscore-form input::placeholder {
+    color: #555;
+}
+
+/* Anpassungen der mobilen Steuerung für Space Invaders */
+/* KORREKTUR: 'display: flex' wurde entfernt, da dies von '.visible' gesteuert wird */
+#mobile-controls.si-controls {
+    justify-content: space-between;
+    align-items: flex-end;
+}
+#mobile-controls.si-controls .d-pad { width: 150px; height: 50px; position: relative; }
+#mobile-controls.si-controls .action-buttons { width: 80px; height: 80px; position: relative; }
+
+#mobile-controls.si-controls #btn-up,
+#mobile-controls.si-controls #btn-down { display: none; }
+
+#mobile-controls.si-controls #btn-left { top: 0; left: 0; }
+#mobile-controls.si-controls #btn-right { top: 0; right: 0; }
+
+#mobile-controls.si-controls #btn-fire { position: static; }
