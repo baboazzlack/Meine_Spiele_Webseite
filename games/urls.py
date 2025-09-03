@@ -17,6 +17,8 @@ urlpatterns = [
     path('tetris/', views.tetris, name='tetris'),
     path('super-breakout/', views.super_breakout, name='super_breakout'),
     path('pacman/', views.pacman, name='pacman'),
-    # NEU: URL für Space Invaders
     path('space-invaders/', views.space_invaders, name='space_invaders'),
+    path('asteroids/', views.asteroids, name='asteroids'),
+    # NEU: URL für Galaga
+    path('galaga/', views.galaga, name='galaga'),
 ]

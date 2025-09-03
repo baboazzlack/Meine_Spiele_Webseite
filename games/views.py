@@ -2,14 +2,11 @@
 from django.contrib import messages
 from django.http import JsonResponse
 import json
-import asyncio # Modul für die Ausführung von Async-Funktionen
+import asyncio
+import os
 
-# KORREKTUR: Wir importieren die Highscore-Logik direkt aus der api.py
-# anstatt sie über das Netzwerk aufzurufen.
 from RetroArcadeHub.api import read_highscores, clear_all_highscores, create_highscore, HighscoreIn
 
-# HINWEIS: Das Passwort verbleibt als Umgebungsvariable
-import os
 HIGHSCORE_DELETE_PASSWORD = os.environ.get('HIGHSCORE_DELETE_PASSWORD', 'fallback_is_invalid')
 
 
@@ -21,7 +18,6 @@ def highscore_list(request):
         password = request.POST.get('password')
         if password == HIGHSCORE_DELETE_PASSWORD:
             try:
-                # DIREKTER AUFRUF: Führt die clear_all_highscores Funktion aus.
                 asyncio.run(clear_all_highscores())
                 messages.success(request, 'Highscore-Liste wurde erfolgreich zurückgesetzt!')
             except Exception as e:
@@ -32,7 +28,6 @@ def highscore_list(request):
 
     scores = []
     try:
-        # DIREKTER AUFRUF: Führt die read_highscores Funktion aus.
         scores = asyncio.run(read_highscores())
     except Exception as e:
          messages.warning(request, f'Der Highscore-Service meldet einen Fehler: {e}')
@@ -43,13 +38,11 @@ def save_score(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            # Wir erstellen ein Datenobjekt, das die API-Funktion erwartet
             score_data = HighscoreIn(
                 player_name=data.get('player_name', 'ANONYM'),
                 game=data.get('game', 'Unbekannt'),
                 score=int(data.get('score', 0))
             )
-            # DIREKTER AUFRUF: Führt die create_highscore Funktion aus.
             asyncio.run(create_highscore(score=score_data))
             return JsonResponse({'status': 'success'})
         except Exception as e:
@@ -65,5 +58,8 @@ def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
 def super_breakout(request): return render(request, 'games/super_breakout.html')
-def pacman(request): return render(request, 'games-pacman') # There seems to be a typo here, it should probably be pacman.html
+def pacman(request): return render(request, 'games/pacman.html')
 def space_invaders(request): return render(request, 'games/space_invaders.html')
+def asteroids(request): return render(request, 'games/asteroids.html')
+# NEU: View für Galaga
+def galaga(request): return render(request, 'games/galaga.html')

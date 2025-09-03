@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Galaga - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="si-game-wrapper">
+
+        <div class="si-ui-panel">
+            <div id="score">SCORE: 0</div>
+            <div id="lives">LIVES: 3</div>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+
+        <div id="start-overlay" class="si-game-overlay">
+            <h2>GALAGA</h2>
+            <div class="si-difficulty-select">
+                <button data-difficulty="easy">LEICHT</button>
+                <button data-difficulty="medium">MITTEL</button>
+                <button data-difficulty="hard">SCHWER</button>
+            </div>
+        </div>
+
+        <div id="game-over-overlay" class="si-game-overlay hidden">
+            <h2>GAME OVER</h2>
+            <p id="final-score">DEIN SCORE: 0</p>
+            <form id="highscore-form">
+                <input type="text" id="player-name" placeholder="DEIN NAME" maxlength="10" required>
+                <button type="submit">SPEICHERN</button>
+            </form>
+            <button id="restart-btn">NEUSTART</button>
+        </div>
+
+    </div>
+
+    <div id="mobile-controls" class="si-controls">
+        <div class="d-pad">
+            <div id="btn-left" class="mobile-btn">&lt;</div>
+            <div id="btn-right" class="mobile-btn">&gt;</div>
+        </div>
+        <div class="action-buttons">
+            <div id="btn-fire" class="mobile-btn">FIRE</div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTE & KONTEXT ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const startOverlay = document.getElementById('start-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const finalScoreEl = document.getElementById('final-score');
+    const restartBtn = document.getElementById('restart-btn');
+    const difficultyButtons = document.querySelectorAll('.si-difficulty-select button');
+    const highscoreForm = document.getElementById('highscore-form');
+    const playerNameInput = document.getElementById('player-name');
+    const mobileControls = document.getElementById('mobile-controls');
+
+    function resizeCanvas() {
+        canvas.width = 800; // Feste Auflösung für stabiles Gameplay
+        canvas.height = 600;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- SPIEL-VARIABLEN ---
+    let player, enemies, bullets, particles, stars, score, lives, game, difficulty, keys, animationId, frame;
+    const difficulties = {
+        easy: { speed: 2, fireRate: 90, diveChance: 0.005 },
+        medium: { speed: 3, fireRate: 60, diveChance: 0.01 },
+        hard: { speed: 4, fireRate: 40, diveChance: 0.02 }
+    };
+
+    // --- SPIELOBJEKTE ---
+    function createPlayer() {
+        return {
+            x: canvas.width / 2 - 25, y: canvas.height - 60,
+            width: 40, height: 40, speed: 7,
+            draw() {
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x + this.width, this.y + this.height * 0.7);
+                ctx.lineTo(this.x + this.width * 0.75, this.y + this.height);
+                ctx.lineTo(this.x + this.width * 0.25, this.y + this.height);
+                ctx.lineTo(this.x, this.y + this.height * 0.7);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = 'cyan';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.height * 0.7);
+                ctx.lineTo(this.x - this.width * 0.2, this.y + this.height * 0.5);
+                ctx.lineTo(this.x - this.width * 0.1, this.y + this.height);
+                ctx.lineTo(this.x + this.width * 0.25, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width, this.y + this.height * 0.7);
+                ctx.lineTo(this.x + this.width * 1.2, this.y + this.height * 0.5);
+                ctx.lineTo(this.x + this.width * 1.1, this.y + this.height);
+                ctx.lineTo(this.x + this.width * 0.75, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height * 0.3, this.width * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+            },
+            update() { if (keys.left) this.x -= this.speed; if (keys.right) this.x += this.speed; if (this.x < 0) this.x = 0; if (this.x + this.width > canvas.width) this.x = canvas.width - this.width; this.draw(); }
+        };
+    }
+
+    function createBullet(x, y, vy, color) {
+        return { x, y, width: 4, height: 12, vy, color,
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 5;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.shadowBlur = 0;
+            },
+            update() { this.y += this.vy; this.draw(); }
+        };
+    }
+
+    function createEnemy(gridX, gridY, path) {
+        return {
+            x: path[0].x, y: path[0].y,
+            gridX, gridY,
+            width: 30, height: 30,
+            path: path, pathIndex: 0,
+            state: 'entering',
+            diveTargetY: 0,
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.fillStyle = '#00a0a0';
+                ctx.beginPath();
+                ctx.moveTo(-this.width * 0.4, 0);
+                ctx.lineTo(0, -this.height * 0.5);
+                ctx.lineTo(this.width * 0.4, 0);
+                ctx.lineTo(0, this.height * 0.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.moveTo(-this.width * 0.4, -this.height * 0.1);
+                ctx.lineTo(-this.width * 0.6, -this.height * 0.3);
+                ctx.lineTo(-this.width * 0.6, this.height * 0.3);
+                ctx.lineTo(-this.width * 0.4, this.height * 0.1);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(this.width * 0.4, -this.height * 0.1);
+                ctx.lineTo(this.width * 0.6, -this.height * 0.3);
+                ctx.lineTo(this.width * 0.6, this.height * 0.3);
+                ctx.lineTo(this.width * 0.4, this.height * 0.1);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(-this.width * 0.15, -this.height * 0.2, this.width * 0.07, 0, Math.PI * 2);
+                ctx.arc(this.width * 0.15, -this.height * 0.2, this.width * 0.07, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            },
+            update() {
+                if (this.state === 'entering') {
+                    const target = this.path[this.pathIndex];
+                    const dx = target.x - this.x;
+                    const dy = target.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < difficulty.speed) {
+                        this.pathIndex++;
+                        if (this.pathIndex >= this.path.length) {
+                            this.state = 'in_grid'; this.x = this.gridX; this.y = this.gridY;
+                        }
+                    } else {
+                        this.x += (dx / dist) * difficulty.speed;
+                        this.y += (dy / dist) * difficulty.speed;
+                    }
+                } else if (this.state === 'diving') {
+                    this.y += difficulty.speed * 2;
+                    if (this.y > canvas.height) { this.state = 'in_grid'; this.x = this.gridX; this.y = this.gridY; }
+                    if (Math.random() < 0.02) { bullets.push(createBullet(this.x + this.width / 2 - 2, this.y + this.height, 4, 'yellow')); }
+                } else {
+                    this.x = this.gridX; this.y = this.gridY;
+                    if (Math.random() < difficulty.diveChance / 2) { bullets.push(createBullet(this.x + this.width / 2 - 2, this.y + this.height, 3, 'yellow')); }
+                }
+                this.draw();
+            }
+        };
+    }
+    
+    const formations = [
+        { gridX: 200, gridY: 50, path: [{x: -50, y: 150}, {x: 100, y: 100}, {x: 200, y: 50}]},
+        { gridX: 250, gridY: 50, path: [{x: -50, y: 180}, {x: 150, y: 120}, {x: 250, y: 50}]},
+        { gridX: 300, gridY: 50, path: [{x: -50, y: 210}, {x: 200, y: 140}, {x: 300, y: 50}]},
+        { gridX: 450, gridY: 50, path: [{x: canvas.width + 50, y: 150}, {x: 700, y: 100}, {x: 450, y: 50}]},
+        { gridX: 400, gridY: 50, path: [{x: canvas.width + 50, y: 180}, {x: 650, y: 120}, {x: 400, y: 50}]},
+        { gridX: 350, gridY: 50, path: [{x: canvas.width + 50, y: 210}, {x: 600, y: 140}, {x: 350, y: 50}]},
+        { gridX: 200, gridY: 90, path: [{x: -50, y: 250}, {x: 100, y: 200}, {x: 200, y: 90}]},
+        { gridX: 250, gridY: 90, path: [{x: -50, y: 280}, {x: 150, y: 220}, {x: 250, y: 90}]},
+        { gridX: 300, gridY: 90, path: [{x: -50, y: 310}, {x: 200, y: 240}, {x: 300, y: 90}]},
+        { gridX: 450, gridY: 90, path: [{x: canvas.width + 50, y: 250}, {x: 700, y: 200}, {x: 450, y: 90}]},
+        { gridX: 400, gridY: 90, path: [{x: canvas.width + 50, y: 280}, {x: 650, y: 220}, {x: 400, y: 90}]},
+        { gridX: 350, gridY: 90, path: [{x: canvas.width + 50, y: 310}, {x: 600, y: 240}, {x: 350, y: 90}]},
+    ];
+
+    function createStars() { stars = []; for (let i = 0; i < 150; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5, alpha: Math.random() }); } }
+    function drawStars() { stars.forEach(star => { star.y += 0.2; if (star.y > canvas.height) star.y = 0; ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`; ctx.fill(); }); }
+
+    function init() {
+        player = createPlayer();
+        enemies = []; bullets = []; score = 0; lives = 3; frame = 0;
+        keys = { left: false, right: false, space: false };
+        game = { active: true, over: false };
+        scoreEl.innerText = 'SCORE: 0'; livesEl.innerText = 'LIVES: 3';
+        createStars();
+        formations.forEach(f => enemies.push(createEnemy(f.gridX, f.gridY, f.path)));
+    }
+
+    function animate() {
+        animationId = requestAnimationFrame(animate);
+        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawStars();
+        player.update();
+        
+        bullets.forEach((b, i) => { if (b.y < 0 || b.y > canvas.height) bullets.splice(i, 1); else b.update(); });
+        
+        enemies.forEach((enemy, eIndex) => {
+            enemy.update();
+            if (enemy.state === 'in_grid' && Math.random() < difficulty.diveChance) { enemy.state = 'diving'; }
+            
+            bullets.forEach((bullet, bIndex) => {
+                if (bullet.y < 0) return;
+                if (bullet.x < enemy.x + enemy.width && bullet.x + bullet.width > enemy.x &&
+                    bullet.y < enemy.y + enemy.height && bullet.y + bullet.height > enemy.y) {
+                    enemies.splice(eIndex, 1);
+                    bullets.splice(bIndex, 1);
+                    score += 150; scoreEl.innerText = `SCORE: ${score}`;
+                }
+            });
+
+            if (enemy.state !== 'entering' && player.x < enemy.x + enemy.width && player.x + player.width > enemy.x &&
+                player.y < enemy.y + enemy.height && player.y + player.height > enemy.y) {
+                lives--; livesEl.innerText = `LIVES: ${lives}`;
+                enemies.splice(eIndex, 1);
+                player.x = canvas.width / 2 - 25;
+                if (lives <= 0) endGame();
+            }
+        });
+
+        if (enemies.length === 0 && frame > 100) {
+            endGame(true);
+        }
+        
+        // KORREKTUR: Zähler für die Spielrunden wird jetzt hochgezählt
+        frame++;
+    }
+
+    function startGame(diff) { difficulty = difficulties[diff]; init(); startOverlay.classList.add('hidden'); game.active = true; animate(); }
+    function endGame(win = false) { if (game.over) return; game.active = false; game.over = true; cancelAnimationFrame(animationId); if (win) score += 1000; finalScoreEl.innerText = `DEIN SCORE: ${score}`; gameOverOverlay.classList.remove('hidden'); }
+
+    difficultyButtons.forEach(b => b.addEventListener('click', () => startGame(b.dataset.difficulty)));
+    restartBtn.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); startOverlay.classList.remove('hidden'); });
+    highscoreForm.addEventListener('submit', async (e) => { e.preventDefault(); const name = playerNameInput.value.trim().toUpperCase(); if (!name) return; try { await fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: name, game: 'Galaga', score: score }) }); } catch (err) { console.error(err); } finally { playerNameInput.value = ''; restartBtn.click(); } });
+    
+    function keyHandler(e) { if (!game.active && e.type === 'keydown') return; const state = e.type === 'keydown'; switch (e.key) { case 'a': case 'ArrowLeft': keys.left = state; break; case 'd': case 'ArrowRight': keys.right = state; break; case ' ': case 'ArrowUp': if (state && !keys.space && bullets.filter(b => b.vy < 0).length < 2) { bullets.push(createBullet(player.x + player.width / 2 - 2, player.y, -8, '#00ffff')); keys.space = true; } else if (!state) { keys.space = false; } break; } }
+    addEventListener('keydown', keyHandler); addEventListener('keyup', keyHandler);
+
+    if ('ontouchstart' in window) {
+        mobileControls.classList.add('visible');
+        const touch = (key, state) => (e) => { e.preventDefault(); if (game.active) keys[key] = state; };
+        const fire = (state) => (e) => {
+            e.preventDefault();
+            if (game.active && state && !keys.space && bullets.filter(b => b.vy < 0).length < 2) {
+                bullets.push(createBullet(player.x + player.width / 2 - 2, player.y, -8, '#00ffff'));
+                keys.space = true;
+            } else if (!state) {
+                keys.space = false;
+            }
+        };
+        const left = document.getElementById('btn-left'), right = document.getElementById('btn-right'), fireBtn = document.getElementById('btn-fire');
+        left.addEventListener('touchstart', touch('left', true)); left.addEventListener('touchend', touch('left', false));
+        right.addEventListener('touchstart', touch('right', true)); right.addEventListener('touchend', touch('right', false));
+        fireBtn.addEventListener('touchstart', fire(true)); fireBtn.addEventListener('touchend', fire(false));
+    }
+});
+</script>
+{% endblock %}
