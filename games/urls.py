@@ -18,8 +18,5 @@ urlpatterns = [
     path('super-breakout/', views.super_breakout, name='super_breakout'),
     path('pacman/', views.pacman, name='pacman'),
     path('space-invaders/', views.space_invaders, name='space_invaders'),
-    path('asteroids/', views.asteroids, name='asteroids'),
-    path('galaga/', views.galaga, name='galaga'),
-    # NEU: URL für Bomberman
-    path('bomberman/', views.bomberman, name='bomberman'),
+    path('whack-a-mole/', views.whack_a_mole, name='whack_a_mole'),
 ]
