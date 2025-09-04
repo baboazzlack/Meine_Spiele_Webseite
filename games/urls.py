@@ -19,6 +19,5 @@ urlpatterns = [
     path('pacman/', views.pacman, name='pacman'),
     path('space-invaders/', views.space_invaders, name='space_invaders'),
     path('asteroids/', views.asteroids, name='asteroids'),
-    # NEU: URL für Galaga
     path('galaga/', views.galaga, name='galaga'),
 ]

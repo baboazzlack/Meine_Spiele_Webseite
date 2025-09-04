@@ -1,114 +1,230 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Pac-Man - GFN Retro Hub{% endblock %}
 
 {% block content %}
 <main class="main-content">
-    <h2>Pac-Man</h2>
-    <p id="instruction">Wähle eine Schwierigkeit.</p>
-    
-    <div id="difficultySelector">
-        <button class="difficulty-btn" data-difficulty="easy">Leicht</button>
-        <button class="difficulty-btn" data-difficulty="medium">Mittel</button>
-        <button class="difficulty-btn" data-difficulty="hard">Schwer</button>
+    <div class="si-game-wrapper">
+
+        <div class="si-ui-panel">
+            <div id="score">SCORE: 0</div>
+            <div id="lives">LIVES: 3</div>
+        </div>
+
+        <canvas id="game-canvas"></canvas>
+
+        <div id="start-overlay" class="si-game-overlay">
+            <h2>PAC-MAN</h2>
+            <div class="si-difficulty-select">
+                <button data-difficulty="easy">LEICHT</button>
+                <button data-difficulty="medium">MITTEL</button>
+                <button data-difficulty="hard">SCHWER</button>
+            </div>
+        </div>
+
+        <div id="game-over-overlay" class="si-game-overlay hidden">
+            <h2>GAME OVER</h2>
+            <p id="final-score">DEIN SCORE: 0</p>
+            <form id="highscore-form">
+                <input type="text" id="player-name" placeholder="DEIN NAME" maxlength="10" required>
+                <button type="submit">SPEICHERN</button>
+            </form>
+            <button id="restart-btn">NEUSTART</button>
+        </div>
+
     </div>
 
-    <div id="gameContainer" style="display: none;">
-        <div id="score" style="font-size: 1.5em; margin-bottom: 10px;">Score: 0</div>
-        <canvas id="gameCanvas" width="672" height="768" style="background-color: #000;"></canvas>
-    </div>
-    
-    <div id="gameOverModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column;">
-        <h2 id="finalScore"></h2>
-        <form id="highscoreForm"><input type="text" id="playerName" placeholder="Dein Name" required><button type="submit">SPEICHERN</button></form>
-        <button onclick="document.location.reload()">NEUSTART</button>
+    <div id="mobile-controls" class="pacman-controls">
+        <div class="d-pad">
+            <div id="btn-left" class="mobile-btn">&lt;</div>
+            <div id="btn-right" class="mobile-btn">&gt;</div>
+            <div id="btn-up" class="mobile-btn">^</div>
+            <div id="btn-down" class="mobile-btn">v</div>
+        </div>
+        <div class="action-buttons">
+            <div id="btn-fire" class="mobile-btn"></div>
+        </div>
     </div>
 </main>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
-        const difficultySelector = document.getElementById('difficultySelector');
-        const gameContainer = document.getElementById('gameContainer');
-        const instruction = document.getElementById('instruction');
-        const gameOverModal = document.getElementById('gameOverModal');
-        
-        let score = 0, pellets = [], powerUps = [], boundaries = [], ghosts = [];
-        let player, animationId, lastKey = '';
-        
-        const TILE_SIZE = 24;
-        const difficultySettings = { easy: {speed: 1.5, scaredTime: 8000}, medium: {speed: 2, scaredTime: 5000}, hard: {speed: 2.5, scaredTime: 3000}};
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTE & KONTEXT ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const startOverlay = document.getElementById('start-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const finalScoreEl = document.getElementById('final-score');
+    const restartBtn = document.getElementById('restart-btn');
+    const difficultyButtons = document.querySelectorAll('.si-difficulty-select button');
+    const highscoreForm = document.getElementById('highscore-form');
+    const playerNameInput = document.getElementById('player-name');
+    const mobileControls = document.getElementById('mobile-controls');
 
-        // Map-Key: 1: top-left, 2: top-right, 3: bottom-left, 4: bottom-right, 5: v-pipe, 6: h-pipe, 7: cross, 8: t-bottom, 9: t-top, 10: t-left, 11: t-right
-        const map = [
-            [1, 6, 6, 6, 6, 6, 6, 6, 6, 6, 9, 6, 6, 6, 6, 6, 9, 6, 6, 6, 6, 6, 6, 6, 6, 2],
-            [5, '.', '.', '.', '.', '.', '.', '.', '.', '.', '5', '.', '.', '.', '.', '.', '5', '.', '.', '.', '.', '.', '.', '.', '.', '5'],
-            [5, 'o', 1, 2, '.', 1, 6, 2, '.', 1, 11, 2, '.', 1, 2, '.', 1, 11, 2, '.', 1, 6, 2, '.', 1, 2, 'o', '5'],
-            [5, '.', '5', '5', '.', '5', ' ', '5', '.', '3', 8, 4, '.', '5', '5', '.', '3', 8, 4, '.', '5', ' ', '5', '.', '5', '5', '.', '5'],
-            [5, '.', 3, 4, '.', 3, 6, 4, '.', ' ', ' ', ' ', '.', 3, 4, '.', ' ', ' ', ' ', '.', 3, 6, 4, '.', 3, 4, '.', '5'],
-            [5, '.', '.', '.', '.', '.', '.', '.', '.', 1, 6, 2, '.', '.', '.', '.', 1, 6, 2, '.', '.', '.', '.', '.', '.', '.', '.', '5'],
-            [3, 6, 6, 2, '.', 1, 2, '.', 3, 4, '.', '5', '.', 1, 2, '.', '5', '.', '.', 3, 4, '.', 1, 2, '.', 1, 6, 6, 4],
-            [' ', ' ', ' ', '5', '.', '5', '5', '.', ' ', ' ', '.', '5', '.', 3, 4, '.', '5', '.', ' ', ' ', '.', '5', '5', '.', '5', ' ', ' ', ' '],
-            [6, 6, 6, 4, '.', 3, 4, ' ', 1, 2, '.', '3', 6, 6, 6, 6, 4, '.', 1, 2, ' ', 3, 4, '.', 3, 6, 6, 6],
-            [' ', ' ', ' ', ' ', '.', ' ', ' ', '.', '5', '5', '.', ' ', ' ', 'G', 'G', ' ', ' ', '.', '5', '5', '.', ' ', ' ', '.', ' ', ' ', ' ', ' '],
-            [6, 6, 6, 2, '.', 1, 2, ' ', 3, 4, '.', 3, 6, 6, 6, 6, 4, '.', 3, 4, ' ', 1, 2, '.', 1, 6, 6, 6],
-            [' ', ' ', ' ', '5', '.', '5', '5', '.', ' ', ' ', '.', ' ', ' ', ' ', ' ', ' ', ' ', '.', ' ', ' ', '.', '5', '5', '.', '5', ' ', ' ', ' '],
-            [1, 6, 6, 4, '.', 3, 4, ' ', 1, 2, '.', 1, 6, 6, 6, 6, 2, '.', 1, 2, ' ', 3, 4, '.', 3, 6, 6, 2],
-            [5, '.', '.', '.', '.', '.', '.', '.', '5', '5', '.', '5', '.', '.', '.', '.', '5', '.', '5', '5', '.', '.', '.', '.', '.', '.', '.', '5'],
-            [5, 'o', 1, 2, '.', 1, 6, 2, '.', '.', '.', '3', 6, 6, 6, 6, 4, '.', '.', '.', '1, 6, 2', '.', 1, 2, 'o', '5'],
-            [5, '.', 5, 5, '.', 5, ' ', '5', '.', 1, 2, '.', ' ', ' ', ' ', ' ', ' ', '.', 1, 2, '.', '5', ' ', '5', '.', '5', '5', '.', '5'],
-            [5, '.', 3, 4, '.', '3', 6, 4, '.', '5', '5', '.', 1, 6, 6, 2, '.', '5', '5', '.', '3', 6, 4, '.', 3, 4, '.', '5'],
-            [5, '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '5', '5', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '5'],
-            [3, 6, 6, 6, 6, 6, 6, 6, 6, 6, 8, 6, 6, 4, 3, 6, 6, 8, 6, 6, 6, 6, 6, 6, 6, 4]
-        ];
-        
-        class Boundary { /* draws maze walls */ }
-        class Pellet { /* draws pellets */ }
-        class PowerUp { /* draws powerups */ }
-        class Player {
-            constructor(x, y) { this.x = x; this.y = y; this.speed = 2; this.radius = TILE_SIZE/2 - 2; this.velocity = {x: 0, y: 0}; this.nextVelocity = {x:0, y:0}; this.openRate = 0.1; this.openValue = 0; this.rotation = 0; }
-            draw() {
-                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.translate(-this.x, -this.y);
-                ctx.fillStyle = 'yellow'; ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, this.openValue, Math.PI*2 - this.openValue);
-                ctx.lineTo(this.x, this.y); ctx.fill(); ctx.restore();
-            }
-            update() {
-                if (Math.abs(Math.sin(this.openValue)) > 0.8) this.openRate = -this.openRate;
-                this.openValue += this.openRate;
+    // --- SPIEL-SETUP ---
+    const TILE_SIZE = 20;
+    canvas.width = 28 * TILE_SIZE;
+    canvas.height = 31 * TILE_SIZE;
 
-                if (this.x % TILE_SIZE === TILE_SIZE / 2 && this.y % TILE_SIZE === TILE_SIZE / 2 && this.canMove(this.nextVelocity)) this.velocity = { ...this.nextVelocity };
-                if (!this.canMove(this.velocity)) this.velocity = {x: 0, y: 0};
-                
-                this.x += this.velocity.x; this.y += this.velocity.y;
+    // Labyrinth-Layout: 1 = Wand, 0 = Pille, 2 = Leerraum, 3 = Power-Pille, 4 = Geister-Haus
+    const map = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,3,1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1,3,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,0,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+        [1,0,0,0,0,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,1],
+        [1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1],
+        [2,2,2,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,2,2,2],
+        [1,1,1,1,0,1,0,1,1,2,2,2,2,2,2,2,2,2,2,1,1,0,1,0,1,1,1,1],
+        [1,0,0,0,0,0,0,1,2,2,1,1,1,4,4,1,1,1,2,2,1,0,0,0,0,0,0,1],
+        [1,0,1,1,0,1,0,1,2,2,1,2,2,2,2,2,2,1,2,2,1,0,1,0,1,1,0,1],
+        [1,0,0,0,0,1,0,1,2,2,1,2,2,2,2,2,2,1,2,2,1,0,1,0,0,0,0,1],
+        [1,0,1,1,0,1,0,1,2,2,1,1,1,1,1,1,1,1,2,2,1,0,1,0,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,3,1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1,3,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+    
+    // --- SPIEL-VARIABLEN ---
+    let player, ghosts, pellets, score, lives, game, difficulty, keys, animationId, frame, pelletCount, frightenedTimer;
+    const difficulties = { easy: { speed: 2, frightTime: 600 }, medium: { speed: 2.5, frightTime: 400 }, hard: { speed: 3, frightTime: 300 } };
+
+    // --- SPIELOBJEKTE ---
+    class Player {
+        constructor(x, y) { this.x = x; this.y = y; this.radius = TILE_SIZE / 2 - 2; this.speed = 2.5; this.vel = { x: 0, y: 0 }; this.nextVel = { x: 0, y: 0 }; this.mouthOpen = 0; }
+        draw() { ctx.fillStyle = 'yellow'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0.25 * Math.PI + this.mouthOpen, 1.75 * Math.PI - this.mouthOpen); ctx.lineTo(this.x, this.y); ctx.closePath(); ctx.fill(); }
+        update() { this.mouthOpen = Math.abs(Math.sin(frame * 0.2)); this.x += this.vel.x; this.y += this.vel.y; this.draw(); }
+    }
+    class Ghost {
+        constructor(x, y, color) { this.x = x; this.y = y; this.radius = TILE_SIZE / 2 - 2; this.color = color; this.speed = 2; this.vel = { x: 0, y: 0 }; this.state = 'normal'; } // normal, frightened, eaten
+        draw() {
+            ctx.fillStyle = this.state === 'frightened' ? 'blue' : (this.state === 'eaten' ? 'white' : this.color);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, Math.PI, 0);
+            ctx.lineTo(this.x + this.radius, this.y + this.radius);
+            ctx.lineTo(this.x - this.radius, this.y + this.radius);
+            ctx.closePath();
+            ctx.fill();
+        }
+        update() { this.x += this.vel.x; this.y += this.vel.y; this.draw(); }
+    }
+    class Pellet {
+        constructor(x, y) { this.x = x; this.y = y; this.radius = 3; }
+        draw() { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); }
+    }
+    class PowerPellet {
+        constructor(x, y) { this.x = x; this.y = y; this.radius = 7; }
+        draw() { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); }
+    }
+
+    // --- LOGIK ---
+    function isWall(row, col) { const tile = map[row]?.[col]; return tile === 1 || tile === 4; }
+
+    function init() {
+        player = new Player(14 * TILE_SIZE, 11.5 * TILE_SIZE);
+        ghosts = [ new Ghost(14 * TILE_SIZE, 8.5 * TILE_SIZE, 'red'), new Ghost(14 * TILE_SIZE, 9.5 * TILE_SIZE, 'pink'), new Ghost(13 * TILE_SIZE, 9.5 * TILE_SIZE, 'cyan'), new Ghost(15 * TILE_SIZE, 9.5 * TILE_SIZE, 'orange')];
+        pellets = [];
+        score = 0; lives = 3; frame = 0; pelletCount = 0; frightenedTimer = 0;
+        keys = { up: false, down: false, left: false, right: false };
+        game = { active: true, over: false };
+        scoreEl.innerText = 'SCORE: 0'; livesEl.innerText = 'LIVES: 3';
+        map.forEach((row, rowIndex) => {
+            row.forEach((tile, colIndex) => {
+                const center = { x: colIndex * TILE_SIZE + TILE_SIZE / 2, y: rowIndex * TILE_SIZE + TILE_SIZE / 2 };
+                if (tile === 0) { pellets.push(new Pellet(center.x, center.y)); pelletCount++; }
+                else if (tile === 3) { pellets.push(new PowerPellet(center.x, center.y)); }
+            });
+        });
+    }
+
+    function drawMap() {
+        map.forEach((row, rowIndex) => {
+            row.forEach((tile, colIndex) => {
+                if (tile === 1) { ctx.fillStyle = '#0000FF'; ctx.fillRect(colIndex * TILE_SIZE, rowIndex * TILE_SIZE, TILE_SIZE, TILE_SIZE); }
+            });
+        });
+    }
+
+    function updateGhostAI(ghost) {
+        const row = Math.floor(ghost.y / TILE_SIZE);
+        const col = Math.floor(ghost.x / TILE_SIZE);
+        const options = [];
+        if (!isWall(row - 1, col) && ghost.vel.y === 0) options.push({ x: 0, y: -difficulty.speed });
+        if (!isWall(row + 1, col) && ghost.vel.y === 0) options.push({ x: 0, y: difficulty.speed });
+        if (!isWall(row, col - 1) && ghost.vel.x === 0) options.push({ x: -difficulty.speed, y: 0 });
+        if (!isWall(row, col + 1) && ghost.vel.x === 0) options.push({ x: difficulty.speed, y: 0 });
+        
+        if (options.length > 0) {
+            ghost.vel = options[Math.floor(Math.random() * options.length)];
+        }
+    }
+    
+    function animate() {
+        animationId = requestAnimationFrame(animate);
+        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawMap();
+        pellets.forEach(p => p.draw());
+        
+        // --- Player Movement ---
+        const pRow = Math.floor(player.y / TILE_SIZE);
+        const pCol = Math.floor(player.x / TILE_SIZE);
+        if (!isWall(pRow, pCol + player.nextVel.x)) player.vel.x = player.nextVel.x * player.speed;
+        if (!isWall(pRow + player.nextVel.y, pCol)) player.vel.y = player.nextVel.y * player.speed;
+        if (isWall(pRow, pCol + Math.sign(player.vel.x))) player.vel.x = 0;
+        if (isWall(pRow + Math.sign(player.vel.y), pCol)) player.vel.y = 0;
+        player.update();
+
+        // --- Ghost Update ---
+        ghosts.forEach(ghost => {
+            updateGhostAI(ghost);
+            ghost.update();
+            // Kollision
+            if (Math.hypot(player.x - ghost.x, player.y - ghost.y) < player.radius + ghost.radius) {
+                lives--; livesEl.innerText = `LIVES: ${lives}`;
+                if (lives <= 0) endGame();
+                else { player.x = 14 * TILE_SIZE; player.y = 11.5 * TILE_SIZE; player.vel = {x:0, y:0}; }
             }
-            canMove(vel) {
-                for (const boundary of boundaries) {
-                    if (this.collidesWith(boundary, vel)) return false;
-                } return true;
-            }
-            collidesWith(b, vel) {
-                const padding = TILE_SIZE / 2 - this.radius - 1;
-                return (this.y - this.radius + vel.y <= b.y + TILE_SIZE + padding && this.x + this.radius + vel.x >= b.x - padding && this.y + this.radius + vel.y >= b.y - padding && this.x - this.radius + vel.x <= b.x + TILE_SIZE + padding);
+        });
+        
+        // --- Pellet Collision ---
+        for (let i = pellets.length - 1; i >= 0; i--) {
+            const p = pellets[i];
+            if (Math.hypot(player.x - p.x, player.y - p.y) < player.radius + p.radius) {
+                if (p instanceof PowerPellet) { score += 50; } else { score += 10; pelletCount--; }
+                scoreEl.innerText = `SCORE: ${score}`;
+                pellets.splice(i, 1);
             }
         }
-        class Ghost { /* ghost logic */ }
 
-        function createMap(speed) { /* builds the map from the array */ }
+        if (pelletCount === 0) endGame(true);
+        frame++;
+    }
 
-        function animate() { /* game loop */ }
-        
-        difficultySelector.addEventListener('click', e => { /* starts game */ });
-        
-        window.addEventListener('keydown', ({ key }) => { /* handles player input */ });
+    function startGame(diff) { difficulty = difficulties[diff]; init(); startOverlay.classList.add('hidden'); game.active = true; animate(); }
+    function endGame(win = false) { if (game.over) return; game.active = false; game.over = true; cancelAnimationFrame(animationId); if (win) score += 1000; finalScoreEl.innerText = `DEIN SCORE: ${score}`; gameOverOverlay.classList.remove('hidden'); }
 
-        // ... full implementation of classes and functions from previous good attempt, but with fixed map
-        // This is a simplified representation for the thought block. The real implementation is much longer.
-    });
+    difficultyButtons.forEach(b => b.addEventListener('click', () => startGame(b.dataset.difficulty)));
+    restartBtn.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); startOverlay.classList.remove('hidden'); });
+    highscoreForm.addEventListener('submit', async (e) => { e.preventDefault(); const name = playerNameInput.value.trim().toUpperCase(); if (!name) return; try { await fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: name, game: 'Pac-Man', score: score }) }); } catch (err) { console.error(err); } finally { playerNameInput.value = ''; restartBtn.click(); } });
+    
+    function keyHandler(e) { if (!game.active) return; switch (e.key) { case 'ArrowUp': player.nextVel = {x: 0, y: -1}; break; case 'ArrowDown': player.nextVel = {x: 0, y: 1}; break; case 'ArrowLeft': player.nextVel = {x: -1, y: 0}; break; case 'ArrowRight': player.nextVel = {x: 1, y: 0}; break; } }
+    addEventListener('keydown', keyHandler);
+
+    if ('ontouchstart' in window) {
+        mobileControls.classList.add('visible');
+        const up = document.getElementById('btn-up'), down = document.getElementById('btn-down'), left = document.getElementById('btn-left'), right = document.getElementById('btn-right');
+        up.addEventListener('touchstart', (e) => { e.preventDefault(); player.nextVel = {x: 0, y: -1}; });
+        down.addEventListener('touchstart', (e) => { e.preventDefault(); player.nextVel = {x: 0, y: 1}; });
+        left.addEventListener('touchstart', (e) => { e.preventDefault(); player.nextVel = {x: -1, y: 0}; });
+        right.addEventListener('touchstart', (e) => { e.preventDefault(); player.nextVel = {x: 1, y: 0}; });
+    }
+});
 </script>
 {% endblock %}

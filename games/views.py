@@ -58,8 +58,8 @@ def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
 def super_breakout(request): return render(request, 'games/super_breakout.html')
+# KORREKTUR: Tippfehler im Template-Pfad behoben
 def pacman(request): return render(request, 'games/pacman.html')
 def space_invaders(request): return render(request, 'games/space_invaders.html')
 def asteroids(request): return render(request, 'games/asteroids.html')
-# NEU: View für Galaga
 def galaga(request): return render(request, 'games/galaga.html')

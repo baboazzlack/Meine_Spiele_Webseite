@@ -78,11 +78,13 @@ nav a { font-size: 1.2em; margin: 0 15px; }
 #si-highscore-form input, #highscore-form input { font-family: 'Press Start 2P', cursive; background: #111; border: 2px solid #00ffff; padding: 10px; color: #00ffff; font-size: 1em; margin-right: 10px; width: 200px; text-transform: uppercase; text-align: center; }
 #si-highscore-form input::placeholder, #highscore-form input::placeholder { color: #555; }
 
-/* ------------------------------------------- */
-/* --- NEUE STILE FÜR ASTEROIDS STEUERUNG --- */
-/* ------------------------------------------- */
+/* --- Spezifische Mobile Controls --- */
 #mobile-controls.asteroids-controls .d-pad { height: 100px; }
 #mobile-controls.asteroids-controls #btn-up { top: 0; left: 50px; width: 50px; height: 50px; }
 #mobile-controls.asteroids-controls #btn-left { top: 50px; left: 0; width: 50px; height: 50px; }
 #mobile-controls.asteroids-controls #btn-right { top: 50px; right: 0; width: 50px; height: 50px; }
-#mobile-controls.asteroids-controls #btn-down { display: none; } /* Nach unten wird nicht benötigt */
+#mobile-controls.asteroids-controls #btn-down { display: none; }
+
+/* NEU: PAC-MAN STEUERUNG (versteckt den Feuer-Knopf) */
+#mobile-controls.pacman-controls .action-buttons { display: none; }
+#mobile-controls.pacman-controls { justify-content: flex-start; }
