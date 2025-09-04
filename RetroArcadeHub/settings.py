@@ -3,11 +3,32 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-DEBUG = os.environ.get('DEBUG') == 'True'
+# Liest den Secret Key aus den Umgebungsvariablen von Render.
+# Wenn er nicht gefunden wird (z.B. lokal), wird ein Standardwert verwendet.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-gfn-retro-hub-LOCAL-DEV-KEY')
 
-ALLOWED_HOSTS = ['*']
+# Der DEBUG-Modus wird auf Render automatisch deaktiviert.
+# Lokal bleibt er aktiv, es sei denn, die Variable ist anders gesetzt.
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Erlaubt Anfragen von deiner Render-URL und von localhost.
+ALLOWED_HOSTS = []
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+else:
+    # Für die lokale Entwicklung
+    ALLOWED_HOSTS.append('127.0.0.1')
+    ALLOWED_HOSTS.append('localhost')
+
+
+# Wichtig für die Sicherheit bei Online-Betrieb
 CSRF_TRUSTED_ORIGINS = ['https://gfn-retro-hub.onrender.com']
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
+
+# Application definition
 
 INSTALLED_APPS = [
     'games',
@@ -21,8 +42,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # NEU: WhiteNoise Middleware direkt hier einfügen
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Wichtig für Static Files auf Render
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -61,8 +81,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [ os.path.join(BASE_DIR, 'static') ]
-# NEU: Das Verzeichnis, in das `collectstatic` alle Dateien für WhiteNoise kopiert
+# Wichtig für Static Files auf Render
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
