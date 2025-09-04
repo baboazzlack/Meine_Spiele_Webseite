@@ -54,11 +54,11 @@ def guess_the_number(request): return render(request, 'games/guess_the_number.ht
 def rock_paper_scissors(request): return render(request, 'games/rock_paper_scissors.html')
 def tic_tac_toe(request): return render(request, 'games/tic_tac_toe.html')
 def hangman(request): return render(request, 'games/hangman.html')
+# KORREKTUR: Tippfehler im Pfad für snake.html behoben (Punkt durch Schrägstrich ersetzt)
 def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
 def super_breakout(request): return render(request, 'games/super_breakout.html')
-# KORREKTUR: Tippfehler im Template-Pfad behoben
 def pacman(request): return render(request, 'games/pacman.html')
 def space_invaders(request): return render(request, 'games/space_invaders.html')
 def asteroids(request): return render(request, 'games/asteroids.html')

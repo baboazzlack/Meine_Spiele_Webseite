@@ -1,17 +1,11 @@
-﻿# Vollständiger, sauberer Inhalt für: RetroArcadeHub/urls.py
-
-from django.contrib import admin
+﻿from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
-from django.conf import settings
-from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Der Pfad zur Startseite (home.html)
     path('', TemplateView.as_view(template_name='home.html'), name='home'),
+    # Diese Zeile bindet ALLE URLs aus der games-App unter dem Präfix /games/ ein
     path('games/', include('games.urls')),
-    # Alle alten URLs für das Physik-Spiel, Dashboard etc. wurden entfernt.
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

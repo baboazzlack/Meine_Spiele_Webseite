@@ -1,6 +1,7 @@
 ﻿from django.urls import path
 from . import views
 
+# Der Namespace 'games' ist entscheidend für die korrekte Adressierung
 app_name = 'games'
 
 urlpatterns = [

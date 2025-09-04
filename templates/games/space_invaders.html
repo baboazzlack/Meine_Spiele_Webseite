@@ -5,15 +5,12 @@
 
 {% block content %}
 <main class="main-content">
-    <div class="si-game-wrapper">
-
+    <div class.si-game-wrapper">
         <div class="si-ui-panel">
             <div id="si-score">SCORE: 0</div>
             <div id="si-lives">LIVES: 3</div>
         </div>
-
         <canvas id="si-game-canvas"></canvas>
-
         <div id="si-start-overlay" class="si-game-overlay">
             <h2>SIMPLE INVADERS</h2>
             <div class="si-difficulty-select">
@@ -22,7 +19,6 @@
                 <button data-difficulty="hard">SCHWER</button>
             </div>
         </div>
-
         <div id="si-game-over-overlay" class="si-game-overlay hidden">
             <h2>GAME OVER</h2>
             <p id="si-final-score">DEIN SCORE: 0</p>
@@ -32,9 +28,7 @@
             </form>
             <button id="si-restart-btn">NEUSTART</button>
         </div>
-
     </div>
-
     <div id="mobile-controls" class="mobile-btn-container si-controls">
         <div class="d-pad">
             <div id="btn-left" class="mobile-btn">&lt;</div>
@@ -48,6 +42,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/games/simple_invaders_logic.js' %}"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENTE & KONTEXT ---
@@ -63,139 +59,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const highscoreForm = document.getElementById('si-highscore-form');
     const playerNameInput = document.getElementById('player-name');
     const mobileControls = document.getElementById('mobile-controls');
-
-    // Canvas Größe anpassen
-    function resizeCanvas() {
-        const aspectRatio = 4 / 3;
-        const width = document.querySelector('.si-game-wrapper').offsetWidth;
-        canvas.width = width;
-        canvas.height = width / aspectRatio;
-    }
-    window.addEventListener('resize', resizeCanvas);
+    
+    function resizeCanvas() { canvas.width = 800; canvas.height = 600; }
     resizeCanvas();
 
-    // --- SPIELOBJEKTE (EINFACH) ---
-    const player = {
-        x: canvas.width / 2 - 25, y: canvas.height - 40,
-        width: 50, height: 20,
-        color: '#00ffff', speed: 0,
-        draw() { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.width, this.height); },
-        update() { this.x += this.speed; if (this.x < 0) this.x = 0; if (this.x + this.width > canvas.width) this.x = canvas.width - this.width; this.draw(); }
-    };
-
-    function createProjectile(x, y, color, velocityY) {
-        return { x, y, width: 4, height: 10, color, velocityY,
-            draw() { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.width, this.height); },
-            update() { this.y += this.velocityY; this.draw(); }
-        };
-    }
-
-    function createInvader(x, y) {
-        return { x, y, width: 30, height: 20, color: '#ffff00',
-            draw(gridX, gridY) { ctx.fillStyle = this.color; ctx.fillRect(this.x + gridX, this.y + gridY, this.width, this.height); }
-        };
-    }
-    
     // --- SPIEL-ZUSTAND ---
-    let projectiles, invaders, invaderProjectiles, score, lives, game, difficulty, keys, frame, animationId;
+    let player, invaderGrid, projectiles, invaderProjectiles, score, lives, game, difficulty, keys, frame, animationId;
     const difficulties = { easy: { speed: 1.5, fireRate: 100 }, medium: { speed: 2.5, fireRate: 60 }, hard: { speed: 4, fireRate: 35 }};
 
     function init() {
-        player.x = canvas.width / 2 - 25;
+        player = createPlayer(canvas);
+        invaderGrid = createInvaderGrid();
         projectiles = [];
-        invaders = [];
         invaderProjectiles = [];
-        score = 0;
-        lives = 3;
-        frame = 0;
+        score = 0; lives = 3; frame = 0;
         keys = { a: false, d: false, space: false };
         game = { active: true, over: false };
         scoreEl.innerText = 'SCORE: 0';
         livesEl.innerText = 'LIVES: 3';
-
-        // Gegner-Grid erstellen
-        const gridWidth = 10;
-        for (let i = 0; i < gridWidth; i++) {
-            for (let j = 0; j < 4; j++) {
-                invaders.push(createInvader(i * 40, j * 30 + 40));
-            }
-        }
+        invaderGrid.speedX = difficulty.speed;
     }
 
-    let invaderGrid = { x: 0, y: 0, speedX: difficulty ? difficulty.speed : 1 };
-
-    // --- HAUPT-SPIEL-LOOP ---
     function animate() {
         animationId = requestAnimationFrame(animate);
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         player.update();
+        player.draw(ctx);
+
         if (keys.a) player.speed = -5;
         else if (keys.d) player.speed = 5;
         else player.speed = 0;
         
-        // Spieler-Schüsse
-        projectiles.forEach((p, i) => { if (p.y < 0) projectiles.splice(i, 1); else p.update(); });
+        projectiles.forEach((p, i) => { if (p.y < 0) projectiles.splice(i, 1); else { p.update(); p.draw(ctx); } });
+        invaderProjectiles.forEach((p, i) => { p.update(); p.draw(ctx); if (p.y > canvas.height) invaderProjectiles.splice(i, 1); if (p.y + p.height >= player.y && p.x >= player.x && p.x + p.width <= player.x + player.width) { invaderProjectiles.splice(i, 1); lives--; livesEl.innerText = `LIVES: ${lives}`; if (lives <= 0) endGame(); } });
 
-        // Gegner-Schüsse
-        invaderProjectiles.forEach((p, i) => {
-            p.update();
-            if (p.y > canvas.height) invaderProjectiles.splice(i, 1);
-            if (p.y + p.height >= player.y && p.x >= player.x && p.x + p.width <= player.x + player.width) {
-                invaderProjectiles.splice(i, 1); lives--; livesEl.innerText = `LIVES: ${lives}`; if (lives <= 0) endGame();
-            }
-        });
-
-        // Gegner bewegen und zeichnen
         invaderGrid.x += invaderGrid.speedX;
         let changeDirection = false;
-        invaders.forEach(invader => {
+        invaderGrid.invaders.forEach(invader => {
             const absoluteX = invader.x + invaderGrid.x;
-            if (absoluteX <= 0 || absoluteX + invader.width >= canvas.width) {
-                changeDirection = true;
-            }
-            invader.draw(invaderGrid.x, invaderGrid.y);
+            if (absoluteX <= 0 || absoluteX + invader.width >= canvas.width) { changeDirection = true; }
+            invader.draw(ctx, invaderGrid.x, invaderGrid.y);
         });
         if (changeDirection) { invaderGrid.speedX *= -1; invaderGrid.y += 20; }
         
-        // Gegner schießen lassen
-        if (frame % difficulty.fireRate === 0 && invaders.length > 0) {
-            const randomInvader = invaders[Math.floor(Math.random() * invaders.length)];
-            invaderProjectiles.push(createProjectile(randomInvader.x + invaderGrid.x + randomInvader.width / 2, randomInvader.y + invaderGrid.y + randomInvader.height, '#ffcc00', 3));
-        }
+        if (frame % difficulty.fireRate === 0 && invaderGrid.invaders.length > 0) { const randomInvader = invaderGrid.invaders[Math.floor(Math.random() * invaderGrid.invaders.length)]; invaderProjectiles.push(createProjectile(randomInvader.x + invaderGrid.x + randomInvader.width / 2, randomInvader.y + invaderGrid.y + randomInvader.height, '#ffcc00', 3)); }
 
-        // Kollisionserkennung
-        projectiles.forEach((p, pIndex) => {
-            invaders.forEach((invader, iIndex) => {
-                const invaderX = invader.x + invaderGrid.x;
-                const invaderY = invader.y + invaderGrid.y;
-                if (p.x > invaderX && p.x < invaderX + invader.width && p.y > invaderY && p.y < invaderY + invader.height) {
-                    setTimeout(() => { // Verzögerung, um Fehler zu vermeiden
-                        if(invaders.includes(invader)) {
-                           invaders.splice(iIndex, 1);
-                           projectiles.splice(pIndex, 1);
-                           score += 100;
-                           scoreEl.innerText = `SCORE: ${score}`;
-                        }
-                    }, 0);
-                }
-            });
-        });
+        projectiles.forEach((p, pIndex) => { invaderGrid.invaders.forEach((invader, iIndex) => { const invaderX = invader.x + invaderGrid.x; const invaderY = invader.y + invaderGrid.y; if (p.x > invaderX && p.x < invaderX + invader.width && p.y > invaderY && p.y < invaderY + invader.height) { setTimeout(() => { if(invaderGrid.invaders.includes(invader)) { invaderGrid.invaders.splice(iIndex, 1); projectiles.splice(pIndex, 1); score += 100; scoreEl.innerText = `SCORE: ${score}`; } }, 0); } }); });
         
-        if (invaders.length === 0) {
-            endGame(true); // Parameter für "gewonnen"
-        }
-
+        if (invaderGrid.invaders.length === 0) endGame(true);
         frame++;
     }
 
-    // --- SPIEL-STEUERUNG ---
     function startGame(diff) {
         difficulty = difficulties[diff];
-        invaderGrid.speedX = difficulty.speed;
         init();
-        startOverlay.classList.add('hidden');
+        startOverlay.classList.add('hidden'); // Blendet das Menü aus
         game.active = true;
         animate();
     }
@@ -203,12 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (game.over) return;
         game.active = false; game.over = true;
         cancelAnimationFrame(animationId);
-        if (win) score += 1000; // Bonus für den Sieg
+        if (win) score += 1000;
         finalScoreEl.innerText = `DEIN SCORE: ${score}`;
         gameOverOverlay.classList.remove('hidden');
     }
 
-    // --- EVENT LISTENERS ---
     difficultyButtons.forEach(b => b.addEventListener('click', () => startGame(b.dataset.difficulty)));
     restartBtn.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); startOverlay.classList.remove('hidden'); });
     highscoreForm.addEventListener('submit', async (e) => { e.preventDefault(); const name = playerNameInput.value.trim().toUpperCase(); if (!name) return; try { await fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: name, game: 'Simple Invaders', score: score }) }); } catch (err) { console.error(err); } finally { playerNameInput.value = ''; restartBtn.click(); } });
@@ -219,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if ('ontouchstart' in window) {
         mobileControls.classList.add('visible');
         const touchHandler = (key, state) => (e) => { e.preventDefault(); if (game.active) keys[key] = state; };
-        const fireHandler = (state) => (e) => { e.preventDefault(); if (game.active && state && !keys.space) { projectiles.push(createProjectile(player.x + player.width / 2, player.y, '#00ffff', -5)); keys.space = true; } else if (!state) keys.space = false; };
+        const fireHandler = (state) => (e) => { e.preventDefault(); if (game.active && state && !keys.space) { projectiles.push(createProjectile(player.x + player.width / 2, player.y, '#00ffff', -5)); keys.space = true; } else if (!state) { keys.space = false; } };
         const leftBtn = document.getElementById('btn-left'), rightBtn = document.getElementById('btn-right'), fireBtn = document.getElementById('btn-fire');
         leftBtn.addEventListener('touchstart', touchHandler('a', true)); leftBtn.addEventListener('touchend', touchHandler('a', false));
         rightBtn.addEventListener('touchstart', touchHandler('d', true)); rightBtn.addEventListener('touchend', touchHandler('d', false));

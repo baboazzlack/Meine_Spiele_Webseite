@@ -1,0 +1,58 @@
+# .github/workflows/ci.yml
+
+# Der Name unseres Workflows, der in GitHub angezeigt wird
+name: Django CI - Test & Quality Check
+
+# Wann soll der Roboter starten?
+# - bei jedem "git push" auf den main-Branch
+# - bei jedem "pull_request" auf den main-Branch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Die Aufgaben (Jobs), die der Roboter ausführen soll
+jobs:
+  # Wir definieren einen Job namens "test-and-lint"
+  test-and-lint:
+    # Der Roboter arbeitet auf einem frischen, virtuellen Computer mit Ubuntu (Linux)
+    runs-on: ubuntu-latest
+
+    # Das sind die einzelnen Schritte der Anleitung
+    steps:
+    # 1. Code herunterladen
+    - name: Code aus dem Repository auschecken
+      uses: actions/checkout@v4
+
+    # 2. Python-Umgebung einrichten
+    - name: Python einrichten
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    # 3. Node.js-Umgebung einrichten (für JavaScript-Tests)
+    - name: Node.js einrichten
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    # 4. Python-Abhängigkeiten installieren
+    - name: Python-Pakete installieren
+      run: |
+        pip install -r requirements.txt
+    
+    # 5. JavaScript-Abhängigkeiten installieren (Jest)
+    - name: Node.js-Pakete installieren
+      run: npm install
+
+    # 6. JavaScript-Tests ausführen
+    #    Wenn dieser Schritt fehlschlägt, stoppt der ganze Prozess hier!
+    - name: JavaScript-Tests mit Jest ausführen
+      run: npm test
+
+    # 7. Python-Tests ausführen
+    #    (Aktuell haben wir keine, aber der Schritt ist für die Zukunft vorbereitet)
+    #    Wenn dieser Schritt fehlschlägt, stoppt der ganze Prozess hier!
+    - name: Django-Tests mit Pytest ausführen
+      run: echo "Keine Pytest-Tests vorhanden, Schritt erfolgreich." # Platzhalter

@@ -1,6 +1,4 @@
-﻿# Dockerfile
-
-FROM python:3.9-slim
+﻿FROM python:3.9-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -12,9 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Render.com stellt eine PORT-Variable bereit. Wir benutzen diese.
-# Lokal wird standardmäßig Port 8000 verwendet.
+# NEU: Dieser Befehl sammelt alle statischen Dateien und kopiert sie in STATIC_ROOT
+RUN python manage.py collectstatic --noinput
+
 EXPOSE 8000
 
-# Starte die kombinierte Anwendung mit einem ASGI-Server (Uvicorn)
 CMD ["uvicorn", "RetroArcadeHub.asgi:app", "--host", "0.0.0.0", "--port", "8000"]

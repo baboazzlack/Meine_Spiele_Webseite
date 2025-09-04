@@ -1,5 +1,3 @@
-# docker-compose.yml
-
 services:
   web:
     build: .
@@ -7,3 +5,11 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+    environment:
+      # Wichtig für die lokale Entwicklung, damit Fehler angezeigt werden
+      - DEBUG=True
+      # DIESER SCHLÜSSEL MUSS GESETZT SEIN!
+      # Ersetze den Wert durch eine beliebige, lange und zufällige Zeichenfolge.
+      - DJANGO_SECRET_KEY=dein-super-geheimer-zufälliger-schlüssel-hier-einfügen-12345
+      # Das Passwort zum Löschen der Highscores
+      - HIGHSCORE_DELETE_PASSWORD=Offenbach069
