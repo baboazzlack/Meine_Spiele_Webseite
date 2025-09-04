@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bomberman - GFN Retro Hub{% endblock %}
+
+{% block content %}
+<main class="main-content">
+    <div class="tetris-container"> <div class="si-game-wrapper">
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <div class="tetris-ui-panel">
+            <h3>SCORE</h3>
+            <div id="score">0</div>
+            <h3>LIVES</h3>
+            <div id="lives">3</div>
+            <h3>BOMBS</h3>
+            <div id="bombs-stat">1</div>
+            <h3>RANGE</h3>
+            <div id="range-stat">1</div>
+        </div>
+    </div>
+
+    <div id="start-overlay" class="si-game-overlay">
+        <h2>BOMBERMAN</h2>
+        <div class="si-difficulty-select">
+            <button data-difficulty="easy">LEICHT</button>
+            <button data-difficulty="medium">MITTEL</button>
+            <button data-difficulty="hard">SCHWER</button>
+        </div>
+    </div>
+    <div id="game-over-overlay" class="si-game-overlay hidden">
+        <h2 id="game-over-title">GAME OVER</h2>
+        <p id="final-score">DEIN SCORE: 0</p>
+        <form id="highscore-form" class="hidden">
+            <input type="text" id="player-name" placeholder="DEIN NAME" maxlength="10" required>
+            <button type="submit">SPEICHERN</button>
+        </form>
+        <button id="restart-btn">NEUSTART</button>
+    </div>
+
+    <div id="mobile-controls" class="pacman-controls">
+        <div class="d-pad">
+            <div id="btn-left" class="mobile-btn">&lt;</div>
+            <div id="btn-right" class="mobile-btn">&gt;</div>
+            <div id="btn-up" class="mobile-btn">^</div>
+            <div id="btn-down" class="mobile-btn">v</div>
+        </div>
+        <div class="action-buttons">
+            <div id="btn-fire" class="mobile-btn" style="font-size: 1.2em;">BOMB</div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTE & UI ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const bombsStatEl = document.getElementById('bombs-stat');
+    const rangeStatEl = document.getElementById('range-stat');
+    const startOverlay = document.getElementById('start-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const finalScoreEl = document.getElementById('final-score');
+    const restartBtn = document.getElementById('restart-btn');
+    const difficultyButtons = document.querySelectorAll('.si-difficulty-select button');
+    const highscoreForm = document.getElementById('highscore-form');
+    
+    // --- SPIEL-SETUP ---
+    const GRID_SIZE = 13;
+    const TILE_SIZE = Math.floor(600 / GRID_SIZE);
+    canvas.width = GRID_SIZE * TILE_SIZE;
+    canvas.height = GRID_SIZE * TILE_SIZE;
+    
+    let board, player, bombs, explosions, enemies, powerUps, score, lives, game, difficulty, animationId;
+    const difficulties = { easy: { enemyCount: 2, enemySpeed: 30 }, medium: { enemyCount: 3, enemySpeed: 25 }, hard: { enemyCount: 4, enemySpeed: 20 } };
+
+    // --- KLASSEN & LOGIK ---
+    class Player {
+        constructor(col, row) { this.col = col; this.row = row; this.bombsMax = 1; this.bombRange = 1; }
+        draw() { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(this.col * TILE_SIZE + TILE_SIZE/2, this.row * TILE_SIZE + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI*2); ctx.fill(); }
+    }
+    class Enemy {
+        constructor(col, row) { this.col = col; this.row = row; this.vel = {x:0,y:0}; this.tick = 0; }
+        draw() { ctx.fillStyle = 'cyan'; ctx.fillRect(this.col * TILE_SIZE + TILE_SIZE/4, this.row * TILE_SIZE + TILE_SIZE/4, TILE_SIZE/2, TILE_SIZE/2); }
+    }
+    class Bomb {
+        constructor(col, row, range, owner) { this.col = col; this.row = row; this.range = range; this.timer = 120; this.owner = owner; }
+        draw() { ctx.fillStyle = Math.floor(this.timer / 10) % 2 === 0 ? 'red' : 'darkred'; ctx.beginPath(); ctx.arc(this.col * TILE_SIZE + TILE_SIZE/2, this.row * TILE_SIZE + TILE_SIZE/2, TILE_SIZE/2.5, 0, Math.PI*2); ctx.fill(); }
+    }
+    class Explosion {
+        constructor(col, row) { this.col = col; this.row = row; this.timer = 30; }
+        draw() { ctx.fillStyle = 'orange'; ctx.globalAlpha = this.timer / 30; ctx.fillRect(this.col * TILE_SIZE, this.row * TILE_SIZE, TILE_SIZE, TILE_SIZE); ctx.globalAlpha = 1.0; }
+    }
+    class PowerUp {
+        constructor(col, row, type) { this.col = col; this.row = row; this.type = type; }
+        draw() { ctx.fillStyle = this.type === 'bomb' ? 'lime' : 'yellow'; ctx.fillRect(this.col*TILE_SIZE + 5, this.row*TILE_SIZE+5, TILE_SIZE-10, TILE_SIZE-10); }
+    }
+
+    function generateMap() {
+        board = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
+        for (let r = 0; r < GRID_SIZE; r++) { for (let c = 0; c < GRID_SIZE; c++) { if (r === 0 || r === GRID_SIZE - 1 || c === 0 || c === GRID_SIZE - 1 || (r % 2 === 0 && c % 2 === 0)) { board[r][c] = 1; } else if (Math.random() < 0.8) { board[r][c] = 2; } } }
+        board[1][1] = 0; board[1][2] = 0; board[2][1] = 0;
+        board[GRID_SIZE - 2][GRID_SIZE - 2] = 0; board[GRID_SIZE - 2][GRID_SIZE - 3] = 0; board[GRID_SIZE - 3][GRID_SIZE - 2] = 0;
+        board[1][GRID_SIZE - 2] = 0; board[1][GRID_SIZE - 3] = 0; board[2][GRID_SIZE - 2] = 0;
+    }
+
+    function drawBoard() { for (let r = 0; r < GRID_SIZE; r++) { for (let c = 0; c < GRID_SIZE; c++) { ctx.fillStyle = '#111'; ctx.fillRect(c*TILE_SIZE, r*TILE_SIZE, TILE_SIZE, TILE_SIZE); if (board[r][c] === 1) { ctx.fillStyle = '#555'; } else if (board[r][c] === 2) { ctx.fillStyle = '#A52A2A'; } else { continue; } ctx.fillRect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE); } } }
+
+    function init() {
+        generateMap(); player = new Player(1, 1);
+        bombs = []; explosions = []; enemies = []; powerUps = []; score = 0; lives = 3;
+        game = { active: true, over: false };
+        updateUI();
+        const startPositions = [[GRID_SIZE-2,1], [1,GRID_SIZE-2], [GRID_SIZE-2,GRID_SIZE-2], [GRID_SIZE-2, 7]];
+        for(let i=0; i<difficulty.enemyCount; i++) { enemies.push(new Enemy(...startPositions[i % startPositions.length])); }
+    }
+
+    function updateUI() { scoreEl.innerText = score; livesEl.innerText = lives; if(player){ bombsStatEl.innerText = player.bombsMax; rangeStatEl.innerText = player.bombRange;} }
+
+    function animate() {
+        if (game.over) return;
+        animationId = requestAnimationFrame(animate);
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        drawBoard();
+        powerUps.forEach(p => p.draw());
+
+        bombs.forEach((bomb, index) => { bomb.timer--; if (bomb.timer <= 0) { explosions.push(new Explosion(bomb.col, bomb.row)); [[0,1],[0,-1],[1,0],[-1,0]].forEach(dir => { for(let i = 1; i <= bomb.range; i++) { const nC = bomb.col + dir[0] * i; const nR = bomb.row + dir[1] * i; if (board[nR]?.[nC] === 1) break; explosions.push(new Explosion(nC, nR)); if (board[nR]?.[nC] === 2) break; } }); bombs.splice(index, 1); } bomb.draw(); });
+        explosions.forEach((exp, index) => { exp.timer--; if (exp.timer <= 0) { explosions.splice(index, 1); } else { if (board[exp.row]?.[exp.col] === 2) { board[exp.row][exp.col] = 0; score += 10; if (Math.random() < 0.4) { powerUps.push(new PowerUp(exp.col, exp.row, Math.random() < 0.5 ? 'bomb' : 'range')); } } if (exp.col === player.col && exp.row === player.row) { lives--; if(lives > 0) player = new Player(1,1); else endGame(); } enemies.forEach((enemy, eIndex) => { if (exp.col === enemy.col && exp.row === enemy.row) { enemies.splice(eIndex, 1); score += 100; } }); exp.draw(); } });
+        
+        enemies.forEach(enemy => {
+            enemy.tick++;
+            if (enemy.tick > difficulty.enemySpeed) {
+                const options = []; const {col, row} = enemy; if (board[row-1]?.[col] === 0) options.push({x:0, y:-1}); if (board[row+1]?.[col] === 0) options.push({x:0, y:1}); if (board[row]?.[col-1] === 0) options.push({x:-1, y:0}); if (board[row]?.[col+1] === 0) options.push({x:1, y:0});
+                if (options.length > 0) { const move = options[Math.floor(Math.random() * options.length)]; enemy.col += move.x; enemy.row += move.y; }
+                const playerInLine = (enemy.col === player.col || enemy.row === player.row);
+                if (playerInLine && Math.random() < 0.5 && !bombs.some(b => b.owner === enemy)) { bombs.push(new Bomb(enemy.col, enemy.row, 1, enemy)); }
+                enemy.tick = 0;
+            }
+            if (enemy.col === player.col && enemy.row === player.row) { lives--; if(lives > 0) player = new Player(1,1); else endGame(); }
+            enemy.draw();
+        });
+        
+        powerUps.forEach((p, i) => { p.draw(); if (p.col === player.col && p.row === player.row) { if (p.type === 'bomb') player.bombsMax++; else if (p.type === 'range') player.bombRange++; powerUps.splice(i, 1); } });
+        
+        updateUI();
+        player.draw();
+        if (enemies.length === 0 && game.active) endGame(true);
+    }
+
+    function startGame(diff) { difficulty = difficulties[diff]; init(); startOverlay.classList.add('hidden'); game.active = true; animate(); }
+    function endGame(win = false) { if (game.over) return; game.active = false; game.over = true; cancelAnimationFrame(animationId); finalScoreEl.innerText = `DEIN SCORE: ${score}`; gameOverOverlay.classList.remove('hidden'); if(win) highscoreForm.classList.remove('hidden'); }
+    
+    function handleMove(dx, dy) { if (!game.active) return; const newCol = player.col + dx; const newRow = player.row + dy; const targetTile = board[newRow]?.[newCol]; const isBomb = bombs.some(b=>b.col === newCol && b.row === newRow); if (targetTile === 0 && !isBomb) { player.col = newCol; player.row = newRow; } }
+    function handleBomb() { if (!game.active || bombs.filter(b=>b.owner === player).length >= player.bombsMax) return; const bombExists = bombs.some(b => b.col === player.col && b.row === player.row); if (!bombExists) { bombs.push(new Bomb(player.col, player.row, player.bombRange, player)); } }
+    
+    difficultyButtons.forEach(b => b.addEventListener('click', () => startGame(b.dataset.difficulty)));
+    restartBtn.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); startOverlay.classList.remove('hidden'); });
+    highscoreForm.addEventListener('submit', async (e) => { e.preventDefault(); const name = playerNameInput.value.trim().toUpperCase(); if (!name) return; try { await fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: name, game: 'Bomberman', score: score }) }); } catch (err) { console.error(err); } finally { playerNameInput.value = ''; restartBtn.click(); } });
+    
+    addEventListener('keydown', (e) => { if (!game.active) return; e.preventDefault(); switch (e.key) { case 'w': case 'ArrowUp': handleMove(0, -1); break; case 's': case 'ArrowDown': handleMove(0, 1); break; case 'a': case 'ArrowLeft': handleMove(-1, 0); break; case 'd': case 'ArrowRight': handleMove(1, 0); break; case ' ': handleBomb(); break; } });
+    if ('ontouchstart' in window) { document.getElementById('mobile-controls').classList.add('visible'); document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(0, -1); }); document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(0, 1); }); document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(-1, 0); }); document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(1, 0); }); document.getElementById('btn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); handleBomb(); }); }
+});
+</script>
+{% endblock %}

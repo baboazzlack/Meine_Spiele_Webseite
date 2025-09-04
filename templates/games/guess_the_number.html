@@ -1,104 +1,187 @@
-﻿{% extends "base.html" %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Zahlen Raten - GFN Retro Hub{% endblock %}
 
 {% block content %}
-<main class="main-content">
-    <h2>Zahlen Raten</h2>
-    <p id="instruction">Wähle eine Schwierigkeit, um zu starten.</p>
+<div class="si-game-wrapper" id="game-container" style="gap: 20px;">
 
-    <div id="difficultySelector">
-        <button class="difficulty-btn" data-max="50">Leicht (1-50)</button>
-        <button class="difficulty-btn" data-max="100">Mittel (1-100)</button>
-        <button class="difficulty-btn" data-max="200">Schwer (1-200)</button>
+    <div id="start-overlay" class="si-game-overlay">
+        <h2>ZAHLEN RATEN</h2>
+        <div class="si-difficulty-select">
+            <button data-difficulty="easy">Leicht (1-50)</button>
+            <button data-difficulty="medium">Mittel (1-100)</button>
+            <button data-difficulty="hard">Schwer (1-200)</button>
+        </div>
     </div>
-    
-    <div id="game-container" style="margin-top: 30px; display: none;">
-        <input type="number" id="guessInput" placeholder="Deine Zahl..." style="padding: 10px; font-size: 1em; font-family: 'Press Start 2P', cursive;">
-        <button id="guessButton" style="padding: 10px 15px; font-size: 1em; font-family: 'Press Start 2P', cursive; cursor: pointer;">Raten!</button>
-        <p id="message" style="margin-top: 20px; font-size: 1.2em; min-height: 50px;"></p>
-        <button id="resetButton" style="display:none; padding: 10px 15px; font-family: 'Press Start 2P', cursive; cursor: pointer;">Neues Spiel</button>
+
+    <div id="game-over-overlay" class="si-game-overlay hidden">
+        <h2 id="game-over-title"></h2>
+        <p id="game-over-text"></p>
+        <form id="highscore-form" class="hidden">
+            <input type="text" id="player-name" placeholder="DEIN NAME" maxlength="10" required>
+            <button type="submit">SPEICHERN</button>
+        </form>
+        <button id="restart-btn">NEU STARTEN</button>
     </div>
-</main>
+
+    <div id="game-interface" class="hidden" style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+        <h2 id="instruction">Ich denke an eine Zahl zwischen 1 und 100.</h2>
+        <p style="font-size: 1.2em;">Verbleibende Versuche: <span id="guesses-left" style="color: #ffff00;"></span></p>
+        
+        <form id="guess-form" style="display: flex; gap: 10px;">
+            <input type="number" id="guess-input" style="width: 150px; font-size: 1.5em; text-align: center; background: #111; color: #00ffff; border: 2px solid #00ffff; font-family: 'Press Start 2P', cursive;" required>
+            <button type="submit" class="si-difficulty-select button" style="padding: 10px 20px; margin: 0; font-size: 1em;">Raten!</button>
+        </form>
+
+        <p id="feedback" style="font-size: 1.2em; min-height: 1.5em;"></p>
+    </div>
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<style>
-    .difficulty-btn { background-color: #00ffff; color: #000; border: none; padding: 15px 25px; margin: 10px; font-family: 'Press Start 2P', cursive; cursor: pointer; font-size: 1em; }
-    .difficulty-btn:hover { background-color: #ffff00; }
-</style>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        let randomNumber, maxNumber, attempts;
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTE & UI ---
+    const gameContainer = document.getElementById('game-container');
+    const startOverlay = document.getElementById('start-overlay');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const gameInterface = document.getElementById('game-interface');
+    const difficultyButtons = document.querySelectorAll('.si-difficulty-select button');
+    const instructionEl = document.getElementById('instruction');
+    const guessesLeftEl = document.getElementById('guesses-left');
+    const guessForm = document.getElementById('guess-form');
+    const guessInput = document.getElementById('guess-input');
+    const feedbackEl = document.getElementById('feedback');
+    const gameOverTitle = document.getElementById('game-over-title');
+    const gameOverText = document.getElementById('game-over-text');
+    const highscoreForm = document.getElementById('highscore-form');
+    const playerNameInput = document.getElementById('player-name');
+    const restartBtn = document.getElementById('restart-btn');
 
-        const difficultySelector = document.getElementById('difficultySelector');
-        const gameContainer = document.getElementById('game-container');
-        const instruction = document.getElementById('instruction');
-        const guessInput = document.getElementById('guessInput');
-        const guessButton = document.getElementById('guessButton');
-        const message = document.getElementById('message');
-        const resetButton = document.getElementById('resetButton');
+    // --- SPIEL-ZUSTAND ---
+    let targetNumber, maxNumber, remainingGuesses, score, gameActive;
+    // KORREKTUR: Das `game`-Objekt wird hier initialisiert, um den ReferenceError zu verhindern.
+    let game = {};
+    
+    const difficulties = {
+        easy: { max: 50, guesses: 6 },
+        medium: { max: 100, guesses: 7 },
+        hard: { max: 200, guesses: 8 }
+    };
 
-        difficultySelector.addEventListener('click', (e) => {
-            if (e.target.classList.contains('difficulty-btn')) {
-                maxNumber = parseInt(e.target.dataset.max);
-                startGame();
-            }
-        });
+    function startGame(difficulty) {
+        const settings = difficulties[difficulty];
+        maxNumber = settings.max;
+        remainingGuesses = settings.guesses;
+        targetNumber = Math.floor(Math.random() * maxNumber) + 1;
+        gameActive = true;
         
-        function startGame() {
-            randomNumber = Math.floor(Math.random() * maxNumber) + 1;
-            attempts = 0;
-            
-            instruction.textContent = `Ich denke an eine Zahl zwischen 1 und ${maxNumber}.`;
-            difficultySelector.style.display = 'none';
-            gameContainer.style.display = 'block';
-            resetGameUI();
+        score = 0;
+        instructionEl.innerText = `Ich denke an eine Zahl zwischen 1 und ${maxNumber}.`;
+        guessesLeftEl.innerText = remainingGuesses;
+        feedbackEl.innerText = "";
+        guessInput.value = "";
+        guessInput.max = maxNumber;
+
+        startOverlay.classList.add('hidden');
+        gameInterface.classList.remove('hidden');
+        highscoreForm.classList.add('hidden');
+        guessInput.focus();
+    }
+
+    function handleGuess(e) {
+        e.preventDefault();
+        if (!gameActive) return;
+
+        const guess = parseInt(guessInput.value, 10);
+        if (isNaN(guess) || guess < 1 || guess > maxNumber) {
+            feedbackEl.innerText = `Bitte gib eine Zahl von 1 bis ${maxNumber} ein.`;
+            return;
         }
 
-        function checkGuess() {
-            const userGuess = parseInt(guessInput.value);
-            if (isNaN(userGuess) || userGuess < 1 || userGuess > maxNumber) {
-                message.textContent = `Bitte gib eine gültige Zahl zwischen 1 und ${maxNumber} ein!`;
-                message.style.color = '#ff00ff';
-                return;
-            }
-            
-            attempts++;
-            if (userGuess < randomNumber) { message.textContent = 'Zu niedrig!'; message.style.color = '#00ffff'; } 
-            else if (userGuess > randomNumber) { message.textContent = 'Zu hoch!'; message.style.color = '#ffff00'; } 
-            else {
-                message.textContent = `Glückwunsch! Du hast ${randomNumber} in ${attempts} Versuchen erraten!`;
-                message.style.color = '#00ff00';
-                endGame();
-            }
-            guessInput.value = '';
-            guessInput.focus();
+        remainingGuesses--;
+        guessesLeftEl.innerText = remainingGuesses;
+
+        if (guess === targetNumber) {
+            winGame();
+        } else if (guess < targetNumber) {
+            feedbackEl.innerText = "Zu niedrig!";
+            flashFeedback('red');
+        } else {
+            feedbackEl.innerText = "Zu hoch!";
+            flashFeedback('red');
         }
 
-        function endGame() {
-            guessButton.disabled = true;
-            guessInput.disabled = true;
-            resetButton.style.display = 'inline-block';
-        }
-        
-        function resetGameUI() {
-            message.textContent = '';
-            guessButton.disabled = false;
-            guessInput.disabled = false;
-            resetButton.style.display = 'none';
-            guessInput.value = '';
-            guessInput.focus();
+        if (remainingGuesses <= 0 && guess !== targetNumber) {
+            loseGame();
         }
 
-        resetButton.addEventListener('click', () => {
-            gameContainer.style.display = 'none';
-            difficultySelector.style.display = 'block';
-            instruction.textContent = 'Wähle eine Schwierigkeit, um zu starten.';
+        guessInput.value = "";
+        guessInput.focus();
+    }
+    
+    function flashFeedback(type) {
+        const className = type === 'green' ? 'flash-green' : 'flash-red';
+        gameContainer.classList.add(className);
+        setTimeout(() => {
+            gameContainer.classList.remove(className);
+        }, 300);
+    }
+
+    function winGame() {
+        gameActive = false;
+        feedbackEl.innerText = `Korrekt! Die Zahl war ${targetNumber}!`;
+        flashFeedback('green');
+        score = remainingGuesses * 10 * (Object.keys(difficulties).indexOf(game.difficulty) + 1);
+
+        gameOverTitle.innerText = "GEWONNEN!";
+        gameOverText.innerText = `Du hast die Zahl erraten! Dein Score: ${score}`;
+        highscoreForm.classList.remove('hidden');
+        gameOverOverlay.classList.remove('hidden');
+    }
+
+    function loseGame() {
+        gameActive = false;
+        gameOverTitle.innerText = "VERLOREN!";
+        gameOverText.innerText = `Keine Versuche mehr! Die Zahl war ${targetNumber}.`;
+        highscoreForm.classList.add('hidden');
+        gameOverOverlay.classList.remove('hidden');
+    }
+    
+    difficultyButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            game.difficulty = button.dataset.difficulty;
+            startGame(game.difficulty);
         });
-        guessButton.addEventListener('click', checkGuess);
-        guessInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkGuess(); });
     });
+
+    guessForm.addEventListener('submit', handleGuess);
+    
+    restartBtn.addEventListener('click', () => {
+        gameOverOverlay.classList.add('hidden');
+        startOverlay.classList.remove('hidden');
+        gameInterface.classList.add('hidden');
+    });
+
+    highscoreForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = playerNameInput.value.trim().toUpperCase();
+        if (!name) return;
+        try {
+            await fetch("{% url 'games:save_score' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ player_name: name, game: 'Zahlen Raten', score: score })
+            });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            playerNameInput.value = '';
+            restartBtn.click();
+        }
+    });
+});
 </script>
 {% endblock %}

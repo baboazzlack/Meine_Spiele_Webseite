@@ -14,6 +14,7 @@ def game_list(request):
     return render(request, 'games/game_list.html')
 
 def highscore_list(request):
+    # (Inhalt bleibt unverändert)
     if request.method == 'POST':
         password = request.POST.get('password')
         if password == HIGHSCORE_DELETE_PASSWORD:
@@ -35,6 +36,7 @@ def highscore_list(request):
     return render(request, 'games/highscore_list.html', {'highscores': scores})
 
 def save_score(request):
+    # (Inhalt bleibt unverändert)
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -54,7 +56,6 @@ def guess_the_number(request): return render(request, 'games/guess_the_number.ht
 def rock_paper_scissors(request): return render(request, 'games/rock_paper_scissors.html')
 def tic_tac_toe(request): return render(request, 'games/tic_tac_toe.html')
 def hangman(request): return render(request, 'games/hangman.html')
-# KORREKTUR: Tippfehler im Pfad für snake.html behoben (Punkt durch Schrägstrich ersetzt)
 def snake(request): return render(request, 'games/snake.html')
 def pong(request): return render(request, 'games/pong.html')
 def tetris(request): return render(request, 'games/tetris.html')
@@ -63,3 +64,5 @@ def pacman(request): return render(request, 'games/pacman.html')
 def space_invaders(request): return render(request, 'games/space_invaders.html')
 def asteroids(request): return render(request, 'games/asteroids.html')
 def galaga(request): return render(request, 'games/galaga.html')
+# NEU: View für Bomberman
+def bomberman(request): return render(request, 'games/bomberman.html')
