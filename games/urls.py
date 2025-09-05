@@ -19,4 +19,5 @@ urlpatterns = [
     path('pacman/', views.pacman, name='pacman'),
     path('space-invaders/', views.space_invaders, name='space_invaders'),
     path('whack-a-mole/', views.whack_a_mole, name='whack_a_mole'),
+    path('asteroids/', views.asteroids, name='asteroids'), # NEU
 ]

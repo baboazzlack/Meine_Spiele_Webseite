@@ -5,6 +5,10 @@
 @keyframes flicker { 0% { opacity: 0.2; } 5% { opacity: 0.25; } 10% { opacity: 0.22; } 15% { opacity: 0.2; } 25% { opacity: 0.28; } 30% { opacity: 0.25; } 100% { opacity: 0.2; } }
 @keyframes glitch-anim-1 { 0% { clip-path: inset(3% 0 95% 0); } 20% { clip-path: inset(85% 0 4% 0); } 40% { clip-path: inset(54% 0 33% 0); } 60% { clip-path: inset(15% 0 77% 0); } 80% { clip-path: inset(91% 0 3% 0); } 100% { clip-path: inset(33% 0 59% 0); } }
 @keyframes glitch-anim-2 { 0% { transform: translate(-3px, 1px); } 20% { transform: translate(3px, -2px); } 40% { transform: translate(-1px, 2px); } 60% { transform: translate(2px, 1px); } 80% { transform: translate(-2px, -1px); } 100% { transform: translate(1px, 2px); } }
+@keyframes hit-effect { 0% { transform: scale(1) rotate(0deg); } 25% { transform: scale(0.9) rotate(-10deg); } 50% { transform: scale(1.1) rotate(10deg); } 75% { transform: scale(0.95) rotate(-5deg); } 100% { transform: scale(1) rotate(0deg); } }
+@keyframes draw-in { from { transform: translate(-50%, -50%) scale(0); } to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes draw-in-x { from { transform: translate(-50%, -50%) scale(0) rotate(45deg); } to { transform: translate(-50%, -50%) scale(1) rotate(45deg); } }
+@keyframes draw-in-x-neg { from { transform: translate(-50%, -50%) scale(0) rotate(-45deg); } to { transform: translate(-50%, -50%) scale(1) rotate(-45deg); } }
 
 /* --- Globale Styles & Layout --- */
 html { height: 100%; }
@@ -44,18 +48,6 @@ nav a { font-size: 1.2em; margin: 0 15px; }
 #live-user-counter:hover { transform: scale(1.05); }
 .signature-credit { position: fixed; bottom: 15px; right: 20px; color: rgba(204, 204, 204, 0.5); font-family: 'Press Start 2P', cursive; font-size: 0.7em; z-index: 1000; text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.8); pointer-events: none; }
 
-/* --- Mobile Steuerung (Standardmäßig ausgeblendet) --- */
-#mobile-controls { display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; z-index: 2000; user-select: none; }
-#mobile-controls .d-pad { width: 150px; height: 150px; position: relative; }
-#mobile-controls .action-buttons { position: absolute; right: 0; bottom: 0; width: 100px; height: 100px; }
-.mobile-btn { position: absolute; background-color: rgba(255, 255, 255, 0.3); border: 2px solid rgba(255, 255, 255, 0.5); color: white; font-family: 'Press Start 2P', cursive; display: flex; justify-content: center; align-items: center; }
-.mobile-btn:active { background-color: rgba(255, 255, 255, 0.6); }
-#btn-up { top: 0; left: 50px; width: 50px; height: 50px; }
-#btn-down { bottom: 0; left: 50px; width: 50px; height: 50px; }
-#btn-left { top: 50px; left: 0; width: 50px; height: 50px; }
-#btn-right { top: 50px; right: 0; width: 50px; height: 50px; }
-#btn-fire { width: 80px; height: 80px; border-radius: 50%; font-size: 1.2em; right: 10px; bottom: 10px; }
-
 /* --- Media Query für mobile Geräte --- */
 @media (max-width: 768px) {
     .title-main { font-size: 1.8em; animation: none; text-shadow: 3px 3px 0 #ff0000, 0 0 10px #ffff00; }
@@ -63,25 +55,11 @@ nav a { font-size: 1.2em; margin: 0 15px; }
     nav a { font-size: 1em; margin: 0 8px; }
     .game-grid { grid-template-columns: 1fr; }
     .game-card:hover { transform: none; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
-    #mobile-controls { display: flex; justify-content: space-between; align-items: flex-end; }
-    #gameCanvas { width: 100%; height: auto; }
 }
 
 /* ==========================================================================
-   Whack-a-Mole Specific Styles
+   Generische Spiel- und Modal-Styles
    ========================================================================== */
-#game-board-whack-a-mole { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 380px; margin: 25px auto; background-color: #1a1a1a; padding: 20px; border-radius: 10px; border: 2px solid #333; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
-.hole { width: 100px; height: 100px; background: radial-gradient(circle, #000000 60%, #1a1a1a 100%); border-radius: 50%; position: relative; overflow: hidden; border: 3px solid #222; box-shadow: inset 0 5px 10px rgba(0,0,0,0.7); }
-.mole { width: 70%; height: 70%; background-color: #39ff14; border-radius: 50%; position: absolute; bottom: -100%; left: 15%; transition: all 0.15s ease-out; cursor: pointer; box-shadow: 0 0 15px #39ff14, inset 0 0 5px rgba(255,255,255,0.7); border: 2px solid #fff; }
-.mole::before, .mole::after { content: ''; position: absolute; width: 20%; height: 35%; background-color: #000; border-radius: 50%; top: 25%; }
-.mole::before { left: 20%; }
-.mole::after { right: 20%; }
-.hole.up .mole { bottom: 10%; }
-
-/* ==========================================================================
-   Snake Specific Styles
-   ========================================================================== */
-#gameCanvas { background-color: #000; border: 3px solid #00ffff; box-shadow: 0 0 20px #00ffff, inset 0 0 15px rgba(0, 255, 255, 0.3); margin-top: 20px; max-width: 100%; height: auto; }
 .game-controls, .game-info { font-family: 'Press Start 2P', cursive; color: #ffff00; margin-bottom: 20px; }
 .game-controls label { margin-right: 10px; }
 .game-controls select, .game-controls button { background-color: rgba(30, 30, 30, 0.8); border: 2px solid #00ffff; color: #00ffff; padding: 10px; font-family: 'Press Start 2P', cursive; font-size: 0.8em; cursor: pointer; transition: all 0.2s ease-in-out; }
@@ -89,9 +67,33 @@ nav a { font-size: 1.2em; margin: 0 15px; }
 .game-controls button:disabled { cursor: not-allowed; opacity: 0.5; }
 .game-info { font-size: 1.2em; text-shadow: 2px 2px 0px #ff00ff; }
 
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background-color: rgba(30, 30, 30, 0.95); border: 3px solid #00ffff; padding: 30px; border-radius: 10px; box-shadow: 0 0 30px #00ffff, inset 0 0 15px #00ffff; text-align: center; max-width: 90%; width: 400px; }
+.modal-content h2 { color: #ff00ff; font-size: 2em; margin-bottom: 20px; text-shadow: 0 0 15px #ff00ff; }
+.modal-content p { font-size: 1em; color: #fff; margin-bottom: 15px; }
+.modal-content input[type="text"] { background-color: #000; border: 2px solid #39ff14; color: #39ff14; padding: 10px; margin-bottom: 20px; font-family: 'Press Start 2P', cursive; text-align: center; width: calc(100% - 24px); box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
+.modal-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.modal-actions button { background-color: #39ff14; color: #000; border: none; padding: 12px 20px; font-family: 'Press Start 2P', cursive; font-size: 0.8em; cursor: pointer; transition: all 0.2s ease-in-out; box-shadow: 0 0 15px rgba(57, 255, 20, 0.7); flex-grow: 1; }
+.modal-actions button:hover { background-color: #8eff7b; box-shadow: 0 0 25px #8eff7b; }
+
 /* ==========================================================================
-   Galgenmännchen Specific Styles
+   Spiel-Spezifische Styles
    ========================================================================== */
+
+/* --- Whack-a-Mole --- */
+#game-board-whack-a-mole { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 380px; margin: 25px auto; background-color: #1a1a1a; padding: 20px; border-radius: 10px; border: 2px solid #333; box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
+.hole { width: 100px; height: 100px; background: radial-gradient(circle, #000000 60%, #1a1a1a 100%); border-radius: 50%; position: relative; overflow: hidden; border: 3px solid #222; box-shadow: inset 0 5px 10px rgba(0,0,0,0.7); }
+.mole { width: 70%; height: 70%; background-color: #39ff14; border-radius: 50%; position: absolute; bottom: -100%; left: 15%; transition: all 0.15s ease-out; cursor: pointer; box-shadow: 0 0 15px #39ff14, inset 0 0 5px rgba(255,255,255,0.7); border: 2px solid #fff; }
+.mole::before, .mole::after { content: ''; position: absolute; width: 20%; height: 35%; background-color: #000; border-radius: 50%; top: 25%; }
+.mole::before { left: 20%; }
+.mole::after { right: 20%; }
+.hole.up .mole { bottom: 10%; }
+.mole.hit { animation: hit-effect 0.5s ease-in-out; background-color: #ff0000; }
+
+/* --- Snake --- */
+#gameCanvas { background-color: #000; border: 3px solid #00ffff; box-shadow: 0 0 20px #00ffff, inset 0 0 15px rgba(0, 255, 255, 0.3); margin-top: 20px; max-width: 100%; height: auto; }
+
+/* --- Galgenmännchen --- */
 .game-info-hangman { display: flex; justify-content: space-around; max-width: 500px; margin: 20px auto; font-size: 1em; color: #ffff00; }
 #hangmanCanvas { background-color: #111; border: 3px solid #ff00ff; box-shadow: 0 0 20px #ff00ff, inset 0 0 15px rgba(255, 0, 255, 0.3); }
 .word-display { font-size: 2em; color: #ffff00; text-shadow: 0 0 10px #ffff00; letter-spacing: 10px; margin: 20px 0; }
@@ -102,9 +104,7 @@ nav a { font-size: 1.2em; margin: 0 15px; }
 .keyboard-container .key.correct { background-color: #39ff14; border-color: #39ff14; color: #000; }
 .keyboard-container .key.wrong { background-color: #ff0000; border-color: #ff0000; color: #fff; }
 
-/* ==========================================================================
-   Tetris Specific Styles
-   ========================================================================== */
+/* --- Tetris --- */
 .game-layout-tetris { display: flex; justify-content: center; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
 #tetrisCanvas { border: 3px solid #800080; box-shadow: 0 0 20px #800080, inset 0 0 15px rgba(128, 0, 128, 0.4); }
 .game-info-panel { font-family: 'Press Start 2P', cursive; color: #ffff00; width: 150px; text-align: center; }
@@ -115,14 +115,24 @@ nav a { font-size: 1.2em; margin: 0 15px; }
 .game-controls-tetris label { display: block; margin-bottom: 5px; font-size: 0.8em; }
 .game-controls-tetris select, #startGameBtn { width: 100%; }
 
-/* ==========================================================================
-   Globale Modal-Styles (für alle Spiele)
-   ========================================================================== */
-.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background-color: rgba(30, 30, 30, 0.95); border: 3px solid #00ffff; padding: 30px; border-radius: 10px; box-shadow: 0 0 30px #00ffff, inset 0 0 15px #00ffff; text-align: center; max-width: 90%; width: 400px; }
-.modal-content h2 { color: #ff00ff; font-size: 2em; margin-bottom: 20px; text-shadow: 0 0 15px #ff00ff; }
-.modal-content p { font-size: 1em; color: #fff; margin-bottom: 15px; }
-.modal-content input[type="text"] { background-color: #000; border: 2px solid #39ff14; color: #39ff14; padding: 10px; margin-bottom: 20px; font-family: 'Press Start 2P', cursive; text-align: center; width: calc(100% - 24px); box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
-.modal-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-.modal-actions button { background-color: #39ff14; color: #000; border: none; padding: 12px 20px; font-family: 'Press Start 2P', cursive; font-size: 0.8em; cursor: pointer; transition: all 0.2s ease-in-out; box-shadow: 0 0 15px rgba(57, 255, 20, 0.7); flex-grow: 1; }
-.modal-actions button:hover { background-color: #8eff7b; box-shadow: 0 0 25px #8eff7b; }
+/* --- Tic-Tac-Toe --- */
+#board-tic-tac-toe { display: grid; grid-template-columns: repeat(3, 1fr); width: 456px; height: 456px; margin: 20px auto; border: 3px solid #ff00ff; box-shadow: 0 0 20px #ff00ff; }
+.cell-tic-tac-toe { width: 150px; height: 150px; border: 3px solid #ff00ff; cursor: pointer; position: relative; }
+.cell-tic-tac-toe:hover { background-color: rgba(255, 0, 255, 0.1); }
+.cell-tic-tac-toe.x::before, .cell-tic-tac-toe.x::after, .cell-tic-tac-toe.o::before { content: ''; position: absolute; top: 50%; left: 50%; transform-origin: center; }
+.cell-tic-tac-toe.x::before, .cell-tic-tac-toe.x::after { width: 80%; height: 10%; background-color: #00ffff; box-shadow: 0 0 15px #00ffff; }
+.cell-tic-tac-toe.x::before { transform: translate(-50%, -50%) rotate(45deg); animation: draw-in-x 0.3s ease-out; }
+.cell-tic-tac-toe.x::after { transform: translate(-50%, -50%) rotate(-45deg); animation: draw-in-x-neg 0.3s ease-out; }
+.cell-tic-tac-toe.o::before { width: 70%; height: 70%; border: 10px solid #ffff00; border-radius: 50%; box-shadow: 0 0 15px #ffff00; transform: translate(-50%, -50%); animation: draw-in 0.3s ease-out; }
+
+/* --- Asteroids --- */
+#asteroidsCanvas { border: 3px solid #ffffff; box-shadow: 0 0 20px #ffffff; max-width: 100%; height: auto; }
+.game-info-bar-asteroids { font-family: 'Press Start 2P', cursive; color: #ffff00; display: flex; justify-content: space-around; max-width: 800px; margin: 0 auto 15px auto; }
+.game-controls-asteroids { margin-top: 15px; }
+#mobile-controls-asteroids { display: none; position: fixed; bottom: 10px; width: 100%; justify-content: space-between; align-items: center; z-index: 2000; padding: 0 10px; box-sizing: border-box; }
+.joystick, .action-btn { display: flex; gap: 10px; }
+.mobile-btn-asteroids { width: 70px; height: 70px; background: rgba(200, 200, 200, 0.3); border: 2px solid #fff; border-radius: 50%; font-size: 1.5em; color: #fff; user-select: none; }
+.action-btn .mobile-btn-asteroids { width: 90px; height: 90px; }
+@media (max-width: 768px) {
+    #mobile-controls-asteroids { display: flex; }
+}

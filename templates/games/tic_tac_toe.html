@@ -1,171 +1,52 @@
-﻿{% extends "base.html" %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Tic-Tac-Toe - GFN Retro Hub{% endblock %}
 
 {% block content %}
-<main class="main-content">
-    <h2>Tic-Tac-Toe</h2>
-    
-    <div id="difficultySelector">
-        <h3>Wähle einen Gegner:</h3>
-        <button class="difficulty-btn" data-difficulty="easy">Leicht</button>
-        <button class="difficulty-btn" data-difficulty="hard">Schwer</button>
+<main class="game-container-main">
+    <div class="game-header">
+        <h1 class="game-title-h1">Tic-Tac-Toe</h1>
+        <p class="game-description">Drei gewinnt! Kannst du die künstliche Intelligenz schlagen?</p>
     </div>
 
-    <div id="gameContainer" style="display: none;">
-        <div id="status" style="font-size: 1.2em; margin-bottom: 20px;"></div>
-        <div id="board" style="display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 5px; justify-content: center;"></div>
-        <button id="resetButton" style="margin-top: 20px;">Neues Spiel</button>
+    <div class="game-controls">
+        <label for="difficulty">Schwierigkeit:</label>
+        <select id="difficulty">
+            <option value="easy">Leicht</option>
+            <option value="medium" selected>Mittel</option>
+            <option value="hard">Schwer (Unbesiegbar)</option>
+        </select>
+        <button id="startGameBtn">Neues Spiel</button>
+    </div>
+
+    <div id="board-tic-tac-toe">
+        <div class="cell-tic-tac-toe" id="0"></div>
+        <div class="cell-tic-tac-toe" id="1"></div>
+        <div class="cell-tic-tac-toe" id="2"></div>
+        <div class="cell-tic-tac-toe" id="3"></div>
+        <div class="cell-tic-tac-toe" id="4"></div>
+        <div class="cell-tic-tac-toe" id="5"></div>
+        <div class="cell-tic-tac-toe" id="6"></div>
+        <div class="cell-tic-tac-toe" id="7"></div>
+        <div class="cell-tic-tac-toe" id="8"></div>
+    </div>
+
+    <div id="gameOverModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <p>Dein Score: <span id="finalScore">0</span></p>
+            <input type="text" id="playerNameInput" placeholder="Dein Name" maxlength="15">
+            <div class="modal-actions">
+                <button id="saveScoreBtn">Speichern</button>
+                <button id="restartGameBtn">Neues Spiel</button>
+                <button id="closeModalBtn">Schließen</button>
+            </div>
+        </div>
     </div>
 </main>
 {% endblock %}
 
 {% block extra_js %}
-<style>
-    .cell { width: 100px; height: 100px; border: 2px solid #00ffff; display: flex; justify-content: center; align-items: center; font-size: 3em; cursor: pointer; }
-    .difficulty-btn { font-family: 'Press Start 2P', cursive; cursor: pointer; padding: 10px 15px; margin: 5px; }
-</style>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const boardElement = document.getElementById('board');
-        const statusElement = document.getElementById('status');
-        const resetButton = document.getElementById('resetButton');
-        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
-        const difficultySelector = document.getElementById('difficultySelector');
-        const gameContainer = document.getElementById('gameContainer');
-        
-        let board = Array(9).fill(null);
-        const player = 'X', computer = 'O';
-        let isGameActive = true, difficulty = 'easy';
-
-        const winningConditions = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-
-        difficultyButtons.forEach(b => b.addEventListener('click', e => startGame(e.target.dataset.difficulty)));
-        resetButton.addEventListener('click', resetGame);
-
-        function startGame(level) {
-            difficulty = level;
-            difficultySelector.style.display = 'none';
-            gameContainer.style.display = 'block';
-            resetGame();
-        }
-
-        function createBoard() {
-            boardElement.innerHTML = '';
-            for(let i = 0; i < 9; i++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                cell.dataset.index = i;
-                cell.addEventListener('click', handleCellClick);
-                boardElement.appendChild(cell);
-            }
-        }
-
-        function handleCellClick(e) {
-            const index = e.target.dataset.index;
-            if (board[index] || !isGameActive) return;
-
-            board[index] = player;
-            e.target.textContent = player;
-
-            if (checkWinner(board, player)) {
-                endGame(false);
-            } else if (board.every(cell => cell)) {
-                endGame(true);
-            } else {
-                isGameActive = false; // Disable board during computer's turn
-                statusElement.textContent = "Computer denkt...";
-                setTimeout(computerMove, 500);
-            }
-        }
-
-        function computerMove() {
-            let move;
-            if (difficulty === 'hard') {
-                move = minimax(board, computer).index;
-            } else { // Easy
-                let availableMoves = board.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
-                move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
-            }
-            
-            board[move] = computer;
-            document.querySelector(`.cell[data-index='${move}']`).textContent = computer;
-            
-            if (checkWinner(board, computer)) {
-                endGame(false);
-            } else if (board.every(cell => cell)) {
-                endGame(true);
-            } else {
-                isGameActive = true;
-                statusElement.textContent = "Du bist dran (X)";
-            }
-        }
-        
-        function checkWinner(currentBoard, currentPlayer) {
-            return winningConditions.some(condition => {
-                return condition.every(index => currentBoard[index] === currentPlayer);
-            });
-        }
-        
-        function endGame(draw) {
-            isGameActive = false;
-            if (draw) statusElement.textContent = "Unentschieden!";
-            else statusElement.textContent = `${checkWinner(board, player) ? 'Du hast gewonnen!' : 'Computer hat gewonnen!'}`;
-        }
-
-        function resetGame() {
-            board.fill(null);
-            isGameActive = true;
-            statusElement.textContent = 'Du bist dran (X)';
-            document.querySelectorAll('.cell').forEach(cell => cell.textContent = '');
-        }
-
-        function minimax(newBoard, currentPlayer) {
-            const availSpots = newBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
-            if (checkWinner(newBoard, player)) return { score: -10 };
-            if (checkWinner(newBoard, computer)) return { score: 10 };
-            if (availSpots.length === 0) return { score: 0 };
-
-            const moves = [];
-            for (let i = 0; i < availSpots.length; i++) {
-                const move = {};
-                move.index = availSpots[i];
-                newBoard[availSpots[i]] = currentPlayer;
-
-                if (currentPlayer === computer) {
-                    const result = minimax(newBoard, player);
-                    move.score = result.score;
-                } else {
-                    const result = minimax(newBoard, computer);
-                    move.score = result.score;
-                }
-                newBoard[availSpots[i]] = null;
-                moves.push(move);
-            }
-
-            let bestMove;
-            if (currentPlayer === computer) {
-                let bestScore = -10000;
-                for (let i = 0; i < moves.length; i++) {
-                    if (moves[i].score > bestScore) {
-                        bestScore = moves[i].score;
-                        bestMove = i;
-                    }
-                }
-            } else {
-                let bestScore = 10000;
-                for (let i = 0; i < moves.length; i++) {
-                    if (moves[i].score < bestScore) {
-                        bestScore = moves[i].score;
-                        bestMove = i;
-                    }
-                }
-            }
-            return moves[bestMove];
-        }
-
-        createBoard();
-    });
-</script>
+<script src="{% static 'js/tic_tac_toe.js' %}" defer></script>
 {% endblock %}

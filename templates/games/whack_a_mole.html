@@ -40,9 +40,13 @@
     <div id="playerNameModal" class="modal" style="display:none;">
         <div class="modal-content">
             <h2>Highscore!</h2>
-            <p>Gib deinen Namen ein, um deinen Score zu speichern:</p>
+            <p>Dein Score: <span id="finalScore">0</span></p>
             <input type="text" id="playerNameInput" placeholder="Dein Name" maxlength="15">
-            <button id="saveScoreBtn">Speichern</button>
+            <div class="modal-actions">
+                <button id="saveScoreBtn">Speichern</button>
+                <button id="restartGameBtn">Neues Spiel</button>
+                <button id="closeModalBtn">Schließen</button>
+            </div>
         </div>
     </div>
 </main>
@@ -51,50 +55,45 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const holes = document.querySelectorAll('.hole');
+    // DOM Elemente
     const moles = document.querySelectorAll('.mole');
     const scoreBoard = document.getElementById('score');
     const timeBoard = document.getElementById('time');
     const startGameBtn = document.getElementById('startGame');
     const difficultySelect = document.getElementById('difficulty');
     const modal = document.getElementById('playerNameModal');
-    const saveScoreBtn = document.getElementById('saveScoreBtn');
+    const finalScoreEl = document.getElementById('finalScore');
     const playerNameInput = document.getElementById('playerNameInput');
-
+    const saveScoreBtn = document.getElementById('saveScoreBtn');
+    const restartGameBtn = document.getElementById('restartGameBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    
     let lastHole;
     let timeUp = false;
     let score = 0;
-    let gameTime = 30000; // 30 Sekunden Spielzeit
-    let gameTimerId;
-    let moleTimerId;
-    let countdownTimerId; // Eigene ID für den Countdown-Timer
+    const gameTime = 30000;
+    let gameTimerId, moleTimerId, countdownTimerId;
 
-    // Schwierigkeitsstufen
     const difficultySettings = {
         easy: { minTime: 1000, maxTime: 1500 },
         medium: { minTime: 600, maxTime: 1000 },
         hard: { minTime: 300, maxTime: 700 }
     };
 
-    function randomTime(min, max) {
-        return Math.round(Math.random() * (max - min) + min);
-    }
+    function randomTime(min, max) { return Math.round(Math.random() * (max - min) + min); }
 
     function randomHole(holes) {
         const idx = Math.floor(Math.random() * holes.length);
         const hole = holes[idx];
-        if (hole === lastHole) {
-            return randomHole(holes);
-        }
+        if (hole === lastHole) return randomHole(holes);
         lastHole = hole;
         return hole;
     }
 
     function peep() {
-        const difficulty = difficultySelect.value;
-        const { minTime, maxTime } = difficultySettings[difficulty];
+        const { minTime, maxTime } = difficultySettings[difficultySelect.value];
         const time = randomTime(minTime, maxTime);
-        const hole = randomHole(holes);
+        const hole = randomHole(document.querySelectorAll('.hole'));
         hole.classList.add('up');
         moleTimerId = setTimeout(() => {
             hole.classList.remove('up');
@@ -103,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startGame() {
-        // Alte Timer stoppen, falls ein Spiel abgebrochen und neugestartet wird
+        modal.style.display = 'none'; // Modal schließen falls offen
         clearInterval(countdownTimerId);
         clearTimeout(gameTimerId);
 
@@ -116,25 +115,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         peep();
 
-        // **KORRIGIERTE COUNTDOWN-LOGIK**
         let timeLeft = gameTime / 1000;
         countdownTimerId = setInterval(() => {
             timeLeft--;
             timeBoard.textContent = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(countdownTimerId); // Stoppt den Countdown, wenn er 0 erreicht
-            }
+            if (timeLeft <= 0) clearInterval(countdownTimerId);
         }, 1000);
 
-        // Timer, der das Spiel beendet
         gameTimerId = setTimeout(() => {
             timeUp = true;
             startGameBtn.disabled = false;
             difficultySelect.disabled = false;
             clearTimeout(moleTimerId);
-            holes.forEach(hole => hole.classList.remove('up'));
+            document.querySelectorAll('.hole').forEach(hole => hole.classList.remove('up'));
 
             if (score > 0) {
+                finalScoreEl.textContent = score; // Score im Modal setzen
                 setTimeout(() => modal.style.display = 'flex', 500);
             }
         }, gameTime);
@@ -142,6 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function whack(e) {
         if (!e.isTrusted || !this.parentElement.classList.contains('up')) return;
+        
+        this.classList.add('hit');
+        setTimeout(() => this.classList.remove('hit'), 500); // Längere Animationszeit
+
         score++;
         this.parentElement.classList.remove('up');
         scoreBoard.textContent = score;
@@ -149,12 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     moles.forEach(mole => mole.addEventListener('click', whack));
     startGameBtn.addEventListener('click', startGame);
+    
+    // KORRIGIERTE MODAL-BUTTONS
+    restartGameBtn.addEventListener('click', startGame);
+    closeModalBtn.addEventListener('click', () => modal.style.display = 'none');
 
-    // Score speichern
     saveScoreBtn.addEventListener('click', () => {
         const playerName = playerNameInput.value.trim() || 'ANONYM';
-        const gameName = 'Whack-a-Mole';
-
         fetch("{% url 'games:save_score' %}", {
             method: 'POST',
             headers: {
@@ -163,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify({
                 player_name: playerName,
-                game: gameName,
+                game: 'Whack-a-Mole',
                 score: score
             })
         })
@@ -172,11 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.status === 'success') {
                 modal.style.display = 'none';
                 window.location.href = "{% url 'games:highscores' %}";
-            } else {
-                console.error('Fehler beim Speichern:', data.message);
             }
-        })
-        .catch(error => console.error('Netzwerkfehler:', error));
+        });
     });
 });
 </script>

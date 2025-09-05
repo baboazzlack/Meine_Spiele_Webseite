@@ -1,5 +1,4 @@
-﻿<!DOCTYPE html>
-{% load static %}
+﻿{% load static %}<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -27,25 +26,20 @@
         <p>&copy; 2025 GFN Retro Hub - Eine Reise in die Vergangenheit.</p>
     </footer>
     <div class="signature-credit">by Onur Acu</div>
-
+    
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const userCounter = document.getElementById('live-user-counter');
-            
             const socketProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             const socketUrl = `${socketProtocol}${window.location.host}/api/ws`;
-
             const socket = new WebSocket(socketUrl);
-
             socket.onopen = (e) => console.log("Globale WebSocket-Verbindung hergestellt.");
-
             socket.onmessage = (event) => {
                 const messageData = JSON.parse(event.data);
                 if (messageData.type === 'user_count') {
                     userCounter.textContent = `🔴 LIVE: ${messageData.count} User`;
                 }
             };
-
             socket.onclose = (event) => { userCounter.textContent = 'OFFLINE'; userCounter.style.color = '#ff0000'; };
             socket.onerror = (error) => { userCounter.textContent = 'FEHLER'; userCounter.style.color = '#ff0000'; };
         });

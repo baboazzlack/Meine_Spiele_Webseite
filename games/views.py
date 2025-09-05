@@ -63,3 +63,4 @@ def super_breakout(request): return render(request, 'games/super_breakout.html')
 def pacman(request): return render(request, 'games/pacman.html')
 def space_invaders(request): return render(request, 'games/space_invaders.html')
 def whack_a_mole(request): return render(request, 'games/whack_a_mole.html')
+def asteroids(request): return render(request, 'games/asteroids.html') # NEU

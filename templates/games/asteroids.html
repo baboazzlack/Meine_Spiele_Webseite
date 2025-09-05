@@ -4,268 +4,56 @@
 {% block title %}Asteroids - GFN Retro Hub{% endblock %}
 
 {% block content %}
-<main class="main-content">
-    <div class="si-game-wrapper">
-
-        <div class="si-ui-panel">
-            <div id="score">SCORE: 0</div>
-            <div id="lives">LIVES: 3</div>
-        </div>
-
-        <canvas id="game-canvas"></canvas>
-
-        <div id="start-overlay" class="si-game-overlay">
-            <h2>ASTEROIDS</h2>
-            <div class="si-difficulty-select">
-                <button data-difficulty="easy">LEICHT</button>
-                <button data-difficulty="medium">MITTEL</button>
-                <button data-difficulty="hard">SCHWER</button>
-            </div>
-        </div>
-
-        <div id="game-over-overlay" class="si-game-overlay hidden">
-            <h2>GAME OVER</h2>
-            <p id="final-score">DEIN SCORE: 0</p>
-            <form id="highscore-form">
-                <input type="text" id="player-name" placeholder="DEIN NAME" maxlength="10" required>
-                <button type="submit">SPEICHERN</button>
-            </form>
-            <button id="restart-btn">NEUSTART</button>
-        </div>
-
+<main class="game-container-main">
+    <div class="game-header">
+        <h1 class="game-title-h1">Asteroids</h1>
+        <p class="game-description">Zerstöre die Asteroiden, weiche den Trümmern aus und überlebe!</p>
     </div>
 
-    <div id="mobile-controls" class="asteroids-controls">
-        <div class="d-pad">
-            <div id="btn-left" class="mobile-btn">&lt;</div>
-            <div id="btn-right" class="mobile-btn">&gt;</div>
-            <div id="btn-up" class="mobile-btn">THR</div>
+    <div class="game-info-bar-asteroids">
+        <span>Score: <span id="score">0</span></span>
+        <span>Leben: <span id="lives">3</span></span>
+    </div>
+
+    <canvas id="asteroidsCanvas" width="800" height="600"></canvas>
+    
+    <div class="game-controls-asteroids">
+        <label for="difficulty">Schwierigkeit:</label>
+        <select id="difficulty">
+            <option value="easy">Leicht</option>
+            <option value="medium" selected>Mittel</option>
+            <option value="hard">Schwer</option>
+        </select>
+        <button id="startGameBtn">Spiel Starten</button>
+    </div>
+
+    <div id="mobile-controls-asteroids">
+        <div class="joystick">
+            <button id="btn-rot-left" class="mobile-btn-asteroids">⟲</button>
+            <button id="btn-thrust" class="mobile-btn-asteroids"> Thrust</button>
+            <button id="btn-rot-right" class="mobile-btn-asteroids">⟳</button>
         </div>
-        <div class="action-buttons">
-            <div id="btn-fire" class="mobile-btn">FIRE</div>
+        <div class="action-btn">
+            <button id="btn-fire" class="mobile-btn-asteroids">Fire</button>
+        </div>
+    </div>
+
+
+    <div id="gameOverModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2>Game Over</h2>
+            <p>Dein Score: <span id="finalScore">0</span></p>
+            <input type="text" id="playerNameInput" placeholder="Dein Name" maxlength="15">
+            <div class="modal-actions">
+                <button id="saveScoreBtn">Speichern</button>
+                <button id="restartGameBtn">Neues Spiel</button>
+                <button id="closeModalBtn">Schließen</button>
+            </div>
         </div>
     </div>
 </main>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTE & KONTEXT ---
-    const canvas = document.getElementById('game-canvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
-    const livesEl = document.getElementById('lives');
-    const startOverlay = document.getElementById('start-overlay');
-    const gameOverOverlay = document.getElementById('game-over-overlay');
-    const finalScoreEl = document.getElementById('final-score');
-    const restartBtn = document.getElementById('restart-btn');
-    const difficultyButtons = document.querySelectorAll('.si-difficulty-select button');
-    const highscoreForm = document.getElementById('highscore-form');
-    const playerNameInput = document.getElementById('player-name');
-    const mobileControls = document.getElementById('mobile-controls');
-
-    function resizeCanvas() {
-        const aspectRatio = 4 / 3;
-        const width = document.querySelector('.si-game-wrapper').offsetWidth;
-        canvas.width = 800; // Feste Auflösung für stabiles Gameplay
-        canvas.height = 600;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // --- SPIEL-KONSTANTEN & VARIABLEN ---
-    const FRICTION = 0.99;
-    const SHIP_SIZE = 20;
-    let ship, asteroids, bullets, particles, score, lives, game, difficulty, keys, animationId;
-    const difficulties = {
-        easy: { asteroidCount: 4, asteroidSpeed: 1 },
-        medium: { asteroidCount: 6, asteroidSpeed: 1.5 },
-        hard: { asteroidCount: 8, asteroidSpeed: 2 }
-    };
-
-    // --- HELFERFUNKTIONEN ---
-    function wrap(value, max) {
-        if (value < 0) return max;
-        if (value > max) return 0;
-        return value;
-    }
-
-    function distance(p1, p2) {
-        return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
-    }
-    
-    // --- SPIELOBJEKTE ---
-    function createShip() {
-        return {
-            x: canvas.width / 2, y: canvas.height / 2,
-            vx: 0, vy: 0,
-            angle: -Math.PI / 2, rotation: 0,
-            thrusting: false, isInvincible: false,
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.angle);
-                ctx.beginPath();
-                ctx.moveTo(SHIP_SIZE / 2, 0);
-                ctx.lineTo(-SHIP_SIZE / 2, -SHIP_SIZE / 4);
-                ctx.lineTo(-SHIP_SIZE / 2, SHIP_SIZE / 4);
-                ctx.closePath();
-                ctx.strokeStyle = this.isInvincible ? 'blue' : 'white';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                if (this.thrusting) {
-                    ctx.beginPath();
-                    ctx.moveTo(-SHIP_SIZE / 2, 0);
-                    ctx.lineTo(-SHIP_SIZE, 0);
-                    ctx.strokeStyle = 'orange';
-                    ctx.stroke();
-                }
-                ctx.restore();
-            },
-            update() {
-                this.angle += this.rotation;
-                if (this.thrusting) {
-                    this.vx += Math.cos(this.angle) * 0.1;
-                    this.vy += Math.sin(this.angle) * 0.1;
-                }
-                this.vx *= FRICTION; this.vy *= FRICTION;
-                this.x += this.vx; this.y += this.vy;
-                this.x = wrap(this.x, canvas.width);
-                this.y = wrap(this.y, canvas.height);
-                this.draw();
-            }
-        };
-    }
-
-    function createAsteroid(x, y, radius) {
-        return {
-            x, y, radius,
-            vx: (Math.random() - 0.5) * difficulty.asteroidSpeed,
-            vy: (Math.random() - 0.5) * difficulty.asteroidSpeed,
-            angle: Math.random() * Math.PI * 2,
-            sides: Math.floor(Math.random() * 5) + 8, // 8-12 Seiten
-            draw() {
-                ctx.beginPath();
-                ctx.moveTo(this.x + this.radius * Math.cos(0), this.y + this.radius * Math.sin(0));
-                for (let i = 1; i <= this.sides; i++) {
-                    ctx.lineTo(this.x + this.radius * Math.cos(i * 2 * Math.PI / this.sides), this.y + this.radius * Math.sin(i * 2 * Math.PI / this.sides));
-                }
-                ctx.closePath();
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            },
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                this.x = wrap(this.x, canvas.width);
-                this.y = wrap(this.y, canvas.height);
-                this.draw();
-            }
-        };
-    }
-
-    function createBullet() {
-        return {
-            x: ship.x + Math.cos(ship.angle) * (SHIP_SIZE / 2),
-            y: ship.y + Math.sin(ship.angle) * (SHIP_SIZE / 2),
-            vx: Math.cos(ship.angle) * 5 + ship.vx,
-            vy: Math.sin(ship.angle) * 5 + ship.vy,
-            life: 80,
-            draw() {
-                ctx.fillStyle = '#00ffff';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
-                ctx.fill();
-            },
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                this.life--;
-                this.x = wrap(this.x, canvas.width);
-                this.y = wrap(this.y, canvas.height);
-                this.draw();
-            }
-        };
-    }
-
-    // --- SPIEL-LOGIK ---
-    function init() {
-        ship = createShip();
-        asteroids = []; bullets = []; score = 0; lives = 3;
-        keys = { left: false, right: false, up: false, space: false };
-        game = { active: true, over: false };
-        scoreEl.innerText = 'SCORE: 0'; livesEl.innerText = 'LIVES: 3';
-        for (let i = 0; i < difficulty.asteroidCount; i++) {
-            asteroids.push(createAsteroid(Math.random() * canvas.width, Math.random() * canvas.height, 40));
-        }
-    }
-
-    function animate() {
-        animationId = requestAnimationFrame(animate);
-        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ship.update();
-        if (keys.left) ship.rotation = -0.05; else if (keys.right) ship.rotation = 0.05; else ship.rotation = 0;
-        ship.thrusting = keys.up;
-
-        bullets.forEach((b, i) => { if (b.life <= 0) bullets.splice(i, 1); else b.update(); });
-        asteroids.forEach(a => a.update());
-
-        // Kollisionen
-        asteroids.forEach((asteroid, aIndex) => {
-            // Schiff vs Asteroid
-            if (!ship.isInvincible && distance(ship, asteroid) < asteroid.radius + SHIP_SIZE / 4) {
-                lives--; livesEl.innerText = `LIVES: ${lives}`;
-                if (lives <= 0) { endGame(); return; }
-                ship.x = canvas.width / 2; ship.y = canvas.height / 2; ship.vx = 0; ship.vy = 0;
-                ship.isInvincible = true;
-                setTimeout(() => ship.isInvincible = false, 2000);
-            }
-            // Kugel vs Asteroid
-            bullets.forEach((bullet, bIndex) => {
-                if (distance(bullet, asteroid) < asteroid.radius) {
-                    if (asteroid.radius > 25) { // Großer wird zu Medium
-                        asteroids.push(createAsteroid(asteroid.x, asteroid.y, 20));
-                        asteroids.push(createAsteroid(asteroid.x, asteroid.y, 20));
-                        score += 20;
-                    } else if (asteroid.radius > 15) { // Medium wird zu Klein
-                        asteroids.push(createAsteroid(asteroid.x, asteroid.y, 10));
-                        asteroids.push(createAsteroid(asteroid.x, asteroid.y, 10));
-                        score += 50;
-                    } else { // Klein wird zerstört
-                        score += 100;
-                    }
-                    scoreEl.innerText = `SCORE: ${score}`;
-                    asteroids.splice(aIndex, 1);
-                    bullets.splice(bIndex, 1);
-                }
-            });
-        });
-        if (asteroids.length === 0) endGame(true); // Gewonnen
-    }
-
-    // --- SPIEL-STEUERUNG ---
-    function startGame(diff) { difficulty = difficulties[diff]; init(); startOverlay.classList.add('hidden'); game.active = true; animate(); }
-    function endGame(win = false) { if (game.over) return; game.active = false; game.over = true; cancelAnimationFrame(animationId); if(win) score += 1000; finalScoreEl.innerText = `DEIN SCORE: ${score}`; gameOverOverlay.classList.remove('hidden'); }
-
-    // --- EVENT LISTENERS ---
-    difficultyButtons.forEach(b => b.addEventListener('click', () => startGame(b.dataset.difficulty)));
-    restartBtn.addEventListener('click', () => { gameOverOverlay.classList.add('hidden'); startOverlay.classList.remove('hidden'); });
-    highscoreForm.addEventListener('submit', async (e) => { e.preventDefault(); const name = playerNameInput.value.trim().toUpperCase(); if (!name) return; try { await fetch("{% url 'games:save_score' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ player_name: name, game: 'Asteroids', score: score }) }); } catch (err) { console.error(err); } finally { playerNameInput.value = ''; restartBtn.click(); } });
-    
-    function keyHandler(e) { if (!game.active && e.type === 'keydown') return; const state = e.type === 'keydown'; switch (e.key) { case 'ArrowLeft': keys.left = state; break; case 'ArrowRight': keys.right = state; break; case 'ArrowUp': keys.up = state; break; case ' ': if (state && !keys.space) { bullets.push(createBullet()); keys.space = true; } else if (!state) keys.space = false; break; } }
-    addEventListener('keydown', keyHandler); addEventListener('keyup', keyHandler);
-
-    if ('ontouchstart' in window) {
-        mobileControls.classList.add('visible');
-        const left = document.getElementById('btn-left'), right = document.getElementById('btn-right'), up = document.getElementById('btn-up'), fire = document.getElementById('btn-fire');
-        const touch = (key, state) => (e) => { e.preventDefault(); if (game.active) keys[key] = state; };
-        const fireTouch = (state) => (e) => { e.preventDefault(); if (game.active && state && !keys.space) { bullets.push(createBullet()); keys.space = true; } else if (!state) keys.space = false; };
-        left.addEventListener('touchstart', touch('left', true)); left.addEventListener('touchend', touch('left', false));
-        right.addEventListener('touchstart', touch('right', true)); right.addEventListener('touchend', touch('right', false));
-        up.addEventListener('touchstart', touch('up', true)); up.addEventListener('touchend', touch('up', false));
-        fire.addEventListener('touchstart', fireTouch(true)); fire.addEventListener('touchend', fireTouch(false));
-    }
-});
-</script>
+<script src="{% static 'js/asteroids.js' %}" defer></script>
 {% endblock %}
